@@ -1,0 +1,9 @@
+[deps]
+BSeries = "ebb8d67c-85b4-416c-b05f-5f409e808f32"
+BSeriesBook = "b110ba51-f1d8-49f9-8cdb-75230f2350e1"
+RootedTrees = "47965b36-3f3e-11e9-0dcf-4570dfd42a8c"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[compat]
+BSeries = "0.1.72"
+RootedTrees = "2.26"

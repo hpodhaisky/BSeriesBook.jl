@@ -1,0 +1,11 @@
+name = "BSeriesBook"
+uuid = "b110ba51-f1d8-49f9-8cdb-75230f2350e1"
+authors = ["John C. Butcher", "Helmut Podhaisky"]
+version = "0.1.0"
+
+[deps]
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+
+[compat]
+LinearAlgebra = "1"
+julia = "1.10"

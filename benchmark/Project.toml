@@ -1,0 +1,10 @@
+[deps]
+BSeries = "ebb8d67c-85b4-416c-b05f-5f409e808f32"
+BSeriesBook = "b110ba51-f1d8-49f9-8cdb-75230f2350e1"
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+RootedTrees = "47965b36-3f3e-11e9-0dcf-4570dfd42a8c"
+
+[compat]
+BSeries = "0.1.72"
+BenchmarkTools = "1"
+RootedTrees = "2.26"

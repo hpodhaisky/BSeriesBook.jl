@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the book and the software."
+title: "BSeriesBook.jl: Julia companion to the book \"B-Series: Algebraic Analysis of Numerical Methods\""
+type: software
+authors:
+  - family-names: Butcher
+    given-names: John C.
+    affiliation: The University of Auckland
+  - family-names: Podhaisky
+    given-names: Helmut
+    affiliation: Martin Luther University Halle-Wittenberg
+version: 0.1.0
+license: MIT
+repository-code: "https://github.com/hpodhaisky/BSeriesBook.jl"
+url: "https://hpodhaisky.github.io/BSeriesBook.jl"
+preferred-citation:
+  type: book
+  title: "B-Series: Algebraic Analysis of Numerical Methods"
+  authors:
+    - family-names: Butcher
+      given-names: John C.
+  collection-title: Springer Series in Computational Mathematics
+  volume: 55
+  publisher:
+    name: Springer
+  year: 2021
+  doi: 10.1007/978-3-030-70956-3

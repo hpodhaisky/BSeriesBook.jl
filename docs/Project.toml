@@ -1,0 +1,6 @@
+[deps]
+BSeriesBook = "b110ba51-f1d8-49f9-8cdb-75230f2350e1"
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+
+[compat]
+Documenter = "1"
