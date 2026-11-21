@@ -4,7 +4,7 @@
   "description": "Julia companion to J. C. Butcher, B-Series: Algebraic Analysis of Numerical Methods (Springer Series in Computational Mathematics 55, 2021). Software for teaching and research: rooted trees in the book's standard numbering, B-series, composition, substitution, modified equations, Runge-Kutta methods, and the underlying one-step method of general linear methods. Initial version, work in progress.",
   "creators": [
     {"name": "Butcher, John C.", "affiliation": "The University of Auckland"},
-    {"name": "Podhaisky, Helmut", "affiliation": "Martin Luther University Halle-Wittenberg"}
+    {"name": "Podhaisky, Helmut", "affiliation": "Martin Luther University Halle-Wittenberg", "orcid": "0000-0002-8030-421X"}
   ],
   "license": "MIT",
   "keywords": ["B-series", "rooted trees", "Runge-Kutta methods", "general linear methods", "numerical analysis", "Julia"],
