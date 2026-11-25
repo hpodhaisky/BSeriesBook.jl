@@ -15,15 +15,18 @@ Julia companion to the book
 
 Authors: **John C. Butcher** and **Helmut Podhaisky**.
 
-> **Version 0.1 — initial release, work in progress.** The package
-> accompanies a book that is still being revised. It does not yet cover all
-> chapters, and names and interfaces may change in later 0.x versions.
+> **Version 0.2 — work in progress.** The package accompanies a book
+> that is still being revised. It does not yet cover all chapters, and
+> names and interfaces may change in later 0.x versions; see
+> [NEWS.md](NEWS.md) for the changes from 0.1.
 
 The package implements the algorithms of the book **in the book's own
 notation**, so that every example can be recomputed: trees are identified
-by their standard number (Algorithm 3 of the book), B-series are plain vectors
-over this numbering, names follow the book (`σ`, `γ`, `α`, `β`, `λ̂`, `Φ`),
-and arithmetic is exact by default.
+by their standard number (Algorithm 3 of the book), B-series are vectors
+over this numbering whose type records the value on the empty tree, as
+the sets 𝖡\*, 𝖡 and 𝖡⁰ of the book, names follow the book, in ASCII
+(`symmetry`, `factorial`, `alpha`, `beta`, `lambda_hat`, `slope`), and
+arithmetic is exact by default.
 
 BSeriesBook.jl is **software for teaching and research**. Beyond the
 B-series of Runge–Kutta methods, composition, substitution and modified
@@ -58,7 +61,7 @@ julia> using BSeriesBook
 julia> T = Trees(5)
 Trees: 17 trees up to order 5
 
-julia> [bracket(T, n) for n in 1:4]
+julia> [bracket(t) for t in T if order(t) <= 3]
 4-element Vector{String}:
  "τ"
  "[τ]"
@@ -68,10 +71,13 @@ julia> [bracket(T, n) for n in 1:4]
 julia> order_of_accuracy(kutta4(), Trees(8))
 4
 
-julia> E = exact_solution(T); half = [E[n] / 2^order(T, n) for n in 1:length(T)];
+julia> E = exact_solution(T); half = rescale(E, 1//2);
 
-julia> compose(half, half, T) == E        # two half steps = one step
+julia> half * half == E                   # two half steps = one step
 true
+
+julia> a = bseries(kutta4(), T); typeof(a - E)
+VectorFieldBSeries{Rational{BigInt}}
 ```
 
 A general linear method of Chapter 6 (method (6.5 h)(ii) of the book) and

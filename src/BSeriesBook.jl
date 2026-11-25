@@ -6,8 +6,10 @@ Numerical Methods*, Springer Series in Computational Mathematics 55
 (2nd edition in preparation).
 
 The package follows the book's notation and algorithms: trees are
-identified by their standard number (Algorithm 3), B-series are
-vectors over this numbering.  It is software for teaching and research;
+identified by their standard number (Algorithm 3), and B-series are
+vectors over this numbering whose type records a(∅): `GeneralBSeries`
+(𝖡*), `CentralBSeries` (𝖡, a(∅) = 1) and `VectorFieldBSeries`
+(𝖡⁰, a(∅) = 0).  It is software for teaching and research;
 in addition to the B-series of Runge–Kutta methods it provides the
 underlying one-step method of general linear methods (Chapter 6).
 
@@ -26,16 +28,18 @@ include("glm.jl")
 include("underlying.jl")
 
 # Chapter 2
-export ProductTable, TreeTable, TreeFunctions, Trees
+export ProductTable, TreeTable, TreeFunctions, Trees, Tree, number
 export generate_trees, tree_functions
-export order, σ, symmetry, γ, density, α, β
-export trees_of_order, beta_product, children, tree_number, Splitting, splittings
+export order, symmetry, alpha, beta, σ, α, β   # and Base.factorial(t)
+export trees_of_order, beta_product, children, bplus, Splitting, splittings
 export level_sequence, bracket
 export count_trees, count_unrooted_trees
 
 # Chapter 3
-export exact_solution, identity_series
-export lambda_matrix, lambda_hat, compose, inverse
+export AbstractBSeries, GeneralBSeries, CentralBSeries, VectorFieldBSeries
+export empty_tree, ∅, coefficients
+export exact_solution, identity_series, rescale
+export lambda_matrix, lambda_hat, compose, inverse, slope
 export Partition, tree_partitions, join_roots
 export substitute, modified_equation, modifying_integrator
 

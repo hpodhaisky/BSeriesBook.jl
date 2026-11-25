@@ -10,7 +10,7 @@ authors:
     given-names: Helmut
     affiliation: Martin Luther University Halle-Wittenberg
     orcid: "https://orcid.org/0000-0002-8030-421X"
-version: 0.1.0
+version: 0.2.0
 license: MIT
 repository-code: "https://github.com/hpodhaisky/BSeriesBook.jl"
 url: "https://hpodhaisky.github.io/BSeriesBook.jl"

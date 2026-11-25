@@ -43,54 +43,46 @@ function stage_weights(rk::RungeKuttaMethod, T::Trees)
     (; L, R) = T.table
     N = length(T)
     s = stages(rk)
-    ψ = Vector{Vector{eltype(rk.b)}}(undef, N)
-    φ = similar(ψ)
-    ψ[1] = ones(eltype(rk.b), s)
-    φ[1] = rk.A * ψ[1]
+    psi = Vector{Vector{eltype(rk.b)}}(undef, N)
+    phi = similar(psi)
+    psi[1] = ones(eltype(rk.b), s)
+    phi[1] = rk.A * psi[1]
     for n in 2:N
-        ψ[n] = ψ[L[n]] .* φ[R[n]]
-        φ[n] = rk.A * ψ[n]
+        psi[n] = psi[L[n]] .* phi[R[n]]
+        phi[n] = rk.A * psi[n]
     end
-    return ψ, φ
+    return psi, phi
 end
 
 """
     elementary_weights(rk, T) -> Vector
 
-Φ(t_n) = bᵀ ψ(t_n) for every tree; this is the B-series of one step of
-the method.  Book: Section 3.6.
+Φ(t_n) = bᵀ ψ(t_n) for every tree.  Book: Section 3.6.
 """
 function elementary_weights(rk::RungeKuttaMethod, T::Trees)
-    ψ, _ = stage_weights(rk, T)
-    return [dot(rk.b, ψ[n]) for n in 1:length(T)]
+    psi, _ = stage_weights(rk, T)
+    return [dot(rk.b, psi[n]) for n in 1:length(T)]
 end
 
 """
-    bseries(rk, T)
+    bseries(rk, T) -> CentralBSeries
 
-The B-series of one step of `rk` (a(∅) = 1, a(t) = Φ(t)).
+The B-series of one step of `rk`: a(∅) = 1, a(t) = Φ(t).
+Book: Section 3.6.
 """
-bseries(rk::RungeKuttaMethod, T::Trees) = elementary_weights(rk, T)
+bseries(rk::RungeKuttaMethod, T::Trees) =
+    CentralBSeries(T, elementary_weights(rk, T))
 
 """
-    order_of_accuracy(rk, T; atol = 0) -> Int
+    order_of_accuracy(rk::RungeKuttaMethod, T; atol = 0) -> Int
 
-The largest p ≤ p_max such that Φ(t) = 1/t! for all trees with |t| ≤ p.
-Use `atol > 0` for floating-point tableaux.
+The order of `rk`, at most the order of `T`: the order of accuracy of
+its B-series.  Use `atol > 0` for floating-point tableaux.
 
 Book: Section 3.6 (order conditions).
 """
-function order_of_accuracy(rk::RungeKuttaMethod, T::Trees; atol = 0)
-    Φ = elementary_weights(rk, T)
-    for p in 1:T.table.p_max
-        for n in trees_of_order(T, p)
-            if !isapprox(Φ[n], 1 // γ(T, n); atol = atol)
-                return p - 1
-            end
-        end
-    end
-    return T.table.p_max
-end
+order_of_accuracy(rk::RungeKuttaMethod, T::Trees; atol = 0) =
+    order_of_accuracy(bseries(rk, T); atol)
 
 """
     stability_polynomial_coefficients(rk, m) -> Vector

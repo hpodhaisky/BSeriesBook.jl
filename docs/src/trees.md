@@ -5,8 +5,9 @@ Section 2.5). Every tree except
 `t₁ = τ` is the β-product `tₙ = t_{L[n]} ∘ t_{R[n]}`: the tree `t_{R[n]}`
 is grafted onto the root of `t_{L[n]}`, and `R[n] ≤ R[L[n]]` makes the
 decomposition unique. Within each order the trees are numbered in the
-order in which the algorithm produces them. In the package, a tree *is*
-its standard number `n`.
+order in which the algorithm produces them. In the package a tree is a
+[`Tree`](@ref), `T[n]`, which carries its standard number `n`
+([`number`](@ref)) but is not an integer.
 
 The tables on this page are generated from the package when the
 documentation is built ([`Trees`](@ref), [`generate_trees`](@ref)). The
@@ -18,7 +19,7 @@ using BSeriesBook
 # Positions of the vertices of tree n: leaves get consecutive x positions,
 # an inner vertex sits above the middle of its children.
 function place!(pos, edges, T, n, x0, depth)
-    kids = children(T, n)
+    kids = [number(k) for k in children(T[n])]
     if isempty(kids)
         push!(pos, (x0 + 0.5, depth))
         return length(pos), x0 + 1
@@ -87,12 +88,12 @@ lr(n, v) = n == 1 ? "–" : "t<sub>$(v[n])</sub>"
 ```@example trees
 html_table(["n", "tree", "B⁺ form", "|t|", "L[n]", "R[n]",
             "σ(t)", "t!", "α(t)", "β(t)"],
-    [["t<sub>$n</sub>", tree_svg(T, n), bracket(T, n), order(T, n),
-      lr(n, L), lr(n, R), σ(T, n), γ(T, n), α(T, n), β(T, n)]
+    [["t<sub>$n</sub>", tree_svg(T, n), bracket(T[n]), order(T[n]),
+      lr(n, L), lr(n, R), symmetry(T[n]), factorial(T[n]), alpha(T[n]), beta(T[n])]
      for n in 1:length(T)])
 ```
 
-Here σ(t) is the symmetry, t! the tree factorial (density),
+Here σ(t) is the symmetry, t! the tree factorial,
 α(t) = |t|!/(σ(t) t!) the number of essentially different labellings
 and β(t) = |t|!/σ(t) (Book, Section 2.5).
 
@@ -102,19 +103,19 @@ The β-product `t_ℓ ∘ t_r` for all pairs with |t_ℓ| + |t_r| ≤ 5 (row `�
 column `r`), the table `prod` of Algorithm 3:
 
 ```@example trees
-html_table(vcat(["ℓ \\ r"], ["t<sub>$r</sub>" for r in 1:8]),
-    [vcat(["t<sub>$ℓ</sub>"],
-          [order(T, ℓ) + order(T, r) <= 5 ?
-               "t<sub>$(beta_product(T, ℓ, r))</sub>" : ""
+html_table(vcat(["l \\ r"], ["t<sub>$r</sub>" for r in 1:8]),
+    [vcat(["t<sub>$l</sub>"],
+          [order(T[l]) + order(T[r]) <= 5 ?
+               "t<sub>$(number(beta_product(T[l], T[r])))</sub>" : ""
            for r in 1:8])
-     for ℓ in 1:8])
+     for l in 1:8])
 ```
 
 ## In the REPL
 
 ```@example trees
 T = Trees(5)
-[(n, bracket(T, n), T.table.L[n], T.table.R[n]) for n in 9:17]
+[(t, T.table.L[number(t)], T.table.R[number(t)]) for t in trees_of_order(T, 5)]
 ```
 
 Larger tables are obtained the same way, e.g. `Trees(10)` has 1205 trees.

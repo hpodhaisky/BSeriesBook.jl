@@ -119,8 +119,8 @@ function partitioned_form(glm::GeneralLinearMethod)
     Q = [u (V - Id)[:, cols]]
     length(pivot_columns(Q)) == r ||
         error("1 is not a simple eigenvalue of V (algebraic multiplicity)")
-    glm′ = GeneralLinearMethod(A, U * Q, Q \ B, Q \ (V * Q))
-    return glm′, Q
+    glm2 = GeneralLinearMethod(A, U * Q, Q \ B, Q \ (V * Q))
+    return glm2, Q
 end
 
 # Indices of the pivot columns of M (Gaussian elimination, exact for
@@ -148,31 +148,36 @@ function pivot_columns(M::AbstractMatrix)
 end
 
 """
-    underlying_one_step(glm, T) -> (; E, ξ, η, ηD, ζ)
+    underlying_one_step(glm, T) -> (; E, S, u, Q, xi, eta, etaD)
 
 The underlying one-step method of `glm` and the starting method that
-goes with it, to the order of `T`:
-- `E[n]` = Ẽ(t_n), the B-series of the underlying one-step method
-  (Ẽ(∅) = 1, not stored);
-- `ξ[n]` = ξ(t_n) ∈ ℝ^{r-1}, the non-principal part of the starting
+goes with it, to the order of `T`, such that M ∘ S = S ∘ Ẽ:
+- `E::CentralBSeries`: Ẽ, the B-series of the underlying one-step method;
+- `S::Vector{GeneralBSeries}`: the starting method in the original input
+  basis, one B-series per input, `S[i][∅] = u[i]`; its principal part
+  wᵀS is the identity;
+- `u`: the preconsistency vector, `Q`: the change of basis to the
+  partitioned form, inputs ỹ = Q⁻¹ y;
+- `xi[n]` = ξ(t_n) ∈ ℝ^{r-1}, the non-principal part of the starting
   method of the partitioned form (ξ(∅) = 0);
-- `η[n]`, `ηD[n]` ∈ ℝ^s, the stages and stage derivatives;
-- `ζ[n]` ∈ ℝ^r, the starting method in the original input basis,
-  ζ(∅) = u, ζ(t) = Q [0; ξ(t)]: its principal part wᵀζ is the identity.
+- `eta[n]` = η(t_n), `etaD[n]` = (ηD)(t_n) ∈ ℝ^s, the stages and stage
+  derivatives.
 A method that is not in the partitioned form (6.6 a) is first
 transformed with [`partitioned_form`](@ref).
 
 Book: Section 6.6, recursion (6.6 d) and Table 18.
 """
 function underlying_one_step(glm::GeneralLinearMethod, T::Trees)
-    glm′, Q = is_partitioned_form(glm) ?
+    glm2, Q = is_partitioned_form(glm) ?
         (glm, [i == j ? one(eltype(glm.V)) : zero(eltype(glm.V))
                for i in 1:inputs(glm), j in 1:inputs(glm)]) :
         partitioned_form(glm)
-    E, ξ, η, ηD = underlying_recursion(glm′, T)
+    E, xi, eta, etaD = underlying_recursion(glm2, T)
     u = Q[:, 1]
-    ζ = [Q * [zero(eltype(u)); ξ[n]] for n in 1:length(T)]
-    return (; E, ξ, η, ηD, ζ, u, Q)
+    zeta = [Q * [zero(eltype(u)); xi[n]] for n in 1:length(T)]
+    S = [GeneralBSeries(T, u[i], [zeta[n][i] for n in 1:length(T)])
+         for i in 1:inputs(glm)]
+    return (; E = CentralBSeries(T, E), S, u, Q, xi, eta, etaD)
 end
 
 # Recursion (6.6 d) for a method in the partitioned form (6.6 a).
@@ -189,48 +194,48 @@ function underlying_recursion(glm::GeneralLinearMethod, T::Trees)
     N = length(T)
     Sp = splittings(T)
     E = zeros(S, N)
-    ξ = Vector{Vector{S}}(undef, N)
-    η = Vector{Vector{S}}(undef, N)
-    ηD = Vector{Vector{S}}(undef, N)
+    xi = Vector{Vector{S}}(undef, N)
+    eta = Vector{Vector{S}}(undef, N)
+    etaD = Vector{Vector{S}}(undef, N)
     for n in 1:N
         # [book:MV28:begin]
-        ηD[n] = n == 1 ? ones(S, s) : ηD[L[n]] .* η[R[n]]
-        E[n] = b' * ηD[n]
-        w = Bh * ηD[n]
+        etaD[n] = n == 1 ? ones(S, s) : etaD[L[n]] .* eta[R[n]]
+        E[n] = b' * etaD[n]
+        w = Bh * etaD[n]
         for (k, F, m) in Sp[n]
             k == n && continue
-            w -= m * forest_value(E, F) * ξ[k]
+            w -= m * forest_value(E, F) * xi[k]
         end
-        ξ[n] = solve(w)
-        η[n] = A * ηD[n] + Uh * ξ[n]
+        xi[n] = solve(w)
+        eta[n] = A * etaD[n] + Uh * xi[n]
         # [book:MV28:end]
     end
-    return E, ξ, η, ηD
+    return E, xi, eta, etaD
 end
 
 """
-    conjugate_order(a, b, T) -> p
+    conjugate_order(a::CentralBSeries, b::CentralBSeries) -> p
 
 The largest p ≤ p_max such that a is conjugate to b to order p, i.e.
 x a x⁻¹ = b + O_{p+1} for some x, found by repeated use of Algorithm 7
 of the book, [`conjugacy_step`](@ref) (one order at a time, free
-parameters set to 0).  For a = Ẽ, the
-underlying one-step method of a general linear method, and b = E, this
-is the order of the method (with a suitable starting method).
+parameters set to 0).  For a = Ẽ, the underlying one-step method of a
+general linear method, and b = E, this is the order of the method (with
+a suitable starting method).
 
 The test is exact: use rational (or other exact) coefficients.
 
 Book: Section 6.6 ("Test for conjugacy").
 """
-function conjugate_order(a::AbstractVector, b::AbstractVector, T::Trees)
+function conjugate_order(a::CentralBSeries, b::CentralBSeries)
+    check_trees(a, b)
     a[1] == b[1] || return 0
-    a′ = a
-    for p in 2:T.table.p_max
-        res = conjugacy_step(a′, b, T, p)
-        res[1] || return p - 1
-        a′ = res[2]
+    for p in 2:a.T.table.p_max
+        res = conjugacy_step(a, b, p)
+        res === nothing && return p - 1
+        a = res.conjugated
     end
-    return T.table.p_max
+    return a.T.table.p_max
 end
 
 """
@@ -240,4 +245,4 @@ The order of a general linear method: the conjugate order of its
 underlying one-step method to the exact solution.
 """
 order_of_accuracy(glm::GeneralLinearMethod, T::Trees) =
-    conjugate_order(underlying_one_step(glm, T).E, exact_solution(T), T)
+    conjugate_order(underlying_one_step(glm, T).E, exact_solution(T))

@@ -19,23 +19,30 @@ argument.
 T = Trees(6)
 ```
 
-A tree is its standard number `n`. Its B⁺ form, children, level sequence
-and tree functions:
+A tree is a [`Tree`](@ref): `T[n]` is the tree with standard number
+`n`. It is shown with its number and its B⁺ form:
 
 ```@example tut
-[(n, bracket(T, n), order(T, n), σ(T, n), γ(T, n)) for n in 1:9]
+t = T[17]
 ```
+
+Tree functions take the tree, not a number:
 
 ```@example tut
-children(T, 6), tree_number(T, [1, 2]), level_sequence(T, 6)
+[(t, order(t), symmetry(t), factorial(t)) for t in T if order(t) <= 4]
 ```
 
-The β-product `t_ℓ ∘ t_r` (graft `t_r` onto the root of `t_ℓ`) is a table
+Children, B⁺ of a forest, level sequence and the standard number:
+
+```@example tut
+children(T[6]), bplus(T, [T[1], T[2]]), level_sequence(T[6]), number(T[6])
+```
+
+The β-product `s ∘ t` (graft `t` onto the root of `s`) is a table
 lookup:
 
 ```@example tut
-n = beta_product(T, 2, 1)       # [τ] ∘ τ = [τ²]
-bracket(T, n)
+beta_product(T[2], T[1])       # [τ] ∘ τ = [τ²]
 ```
 
 Counting trees (Algorithms 1 and 2):
@@ -48,36 +55,92 @@ count_trees(10)
 U, UN = count_unrooted_trees(10)   # free trees, non-superfluous free trees
 ```
 
-## B-series and composition (Chapter 3)
+## B-series (Chapter 3)
 
-A B-series is a vector over the standard numbering, `a[n] = a(tₙ)`, with
-`a(∅) = 1` implied. The exact solution is `E(t) = 1/t!`:
+A B-series is a vector over the standard numbering, `a[n] = a(tₙ)`,
+whose type records the value on the empty tree, following the sets 𝖡\*,
+𝖡 and 𝖡⁰ of the book (see [Conventions](@ref)). The exact solution
+`E(t) = 1/t!` is a central B-series:
 
 ```@example tut
 E = exact_solution(T)
-E[1:8]
 ```
 
-[`compose`](@ref)`(a, b, T)` is the book's product `ab`: first `a`, then
-`b`. Two half steps of the exact flow give one full step:
-
 ```@example tut
-half = [E[n] / 2^order(T, n) for n in 1:length(T)]
-compose(half, half, T) == E
+E[empty_tree], E[3], coefficients(E)[1:4]
 ```
 
-The inverse in the B-group:
+The type of a linear combination follows from a(∅): the difference of
+two central series lies in 𝖡⁰, a sum of two central series in 𝖡\*.
 
 ```@example tut
-a = [1 // (n + 1) for n in 1:length(T)]
-compose(a, inverse(a, T), T) == identity_series(T)
+a = bseries(kutta4(), T)
+typeof(a - E), typeof(a + E), (a + E)[empty_tree]
+```
+
+## Composition
+
+[`compose`](@ref)`(a, b)`, or `a * b`, is the book's product `ab`: first
+`a`, then `b`. The first factor must be central. Two half steps of the
+exact flow give one full step:
+
+```@example tut
+half = rescale(E, 1//2)          # E^(1/2)(t) = 2^-|t| / t!
+half * half == E
+```
+
+The B-group: inverse, identity and powers.
+
+```@example tut
+a * inv(a) == one(a), a^3 == a * a * a, a^-1 == inverse(a)
+```
+
+The product is also defined when the second factor is not central; it
+has the type of the second factor:
+
+```@example tut
+g = GeneralBSeries(t -> 1//number(t), T, 2)
+typeof(a * g), (a * g)[empty_tree]
 ```
 
 Algorithm 6 gives the efficient representation λ̂ used in the book
 to evaluate compositions:
 
 ```@example tut
-λ̂ = lambda_hat(T, a, 4)
+lhat = lambda_hat(a, 4)
+```
+
+## The map slope and implicit stages
+
+`slope(y)` is the series `yD` of `hf(B_h(y)y₀)`; for the identity it is
+D itself:
+
+```@example tut
+D = slope(identity_series(T))
+coefficients(D)[1:4]
+```
+
+`slope(y, aii)` solves the implicit relation of a diagonally implicit
+stage, `dw = wD` with `w = y + aii·dw`. With `y` the identity and
+`aii = 1` the stage `w` is the implicit Euler method:
+
+```@example tut
+w = identity_series(T) + slope(identity_series(T), 1)
+w == bseries(RungeKuttaMethod(fill(1//1, 1, 1), [1//1]), T)
+```
+
+A diagonally implicit method stage by stage, `Fᵢ = slope(yᵢ, aᵢᵢ)` with
+`yᵢ = 1 + Σ_{j<i} aᵢⱼ Fⱼ`:
+
+```@example tut
+A = [1//3 0 0; 1//2 1//4 0; -1//5 2//3 1//2]; b = [1//4, 1//2, 1//4]
+id = identity_series(T)
+F = VectorFieldBSeries[]
+for i in 1:3
+    y = id + sum((A[i, j] * F[j] for j in 1:i-1); init = zero(id))
+    push!(F, slope(y, A[i, i]))
+end
+id + sum(b[i] * F[i] for i in 1:3) == bseries(RungeKuttaMethod(A, b), T)
 ```
 
 ## Runge–Kutta methods (Chapters 1, 3, 5)
@@ -87,7 +150,7 @@ rk = kutta4()
 rk.A, rk.b
 ```
 
-Elementary weights Φ(t) and the order:
+Elementary weights Φ(t), the B-series of one step and the order:
 
 ```@example tut
 Φ = elementary_weights(rk, Trees(5))
@@ -114,11 +177,11 @@ stability_polynomial_coefficients(rk, 5)
 
 ## Modified equation and modifying integrator
 
-The modified vector field `b` with `b ⋆ E = a`: the exact flow of
+The modified vector field `b` ∈ 𝖡⁰ with `b ⋆ E = a`: the exact flow of
 `y' = h⁻¹ B_h(b)(y)` reproduces the method. For the explicit Euler method,
 
 ```@example tut
-modified_equation(euler(), Trees(4))'
+modified_equation(euler(), Trees(4))
 ```
 
 i.e. `f − (h/2) f′f + h² ( f″(f,f)/12 + f′f′f/3 ) + …`. For the
@@ -128,16 +191,16 @@ order 5:
 ```@example tut
 T7 = Trees(7)
 b = modified_equation(kutta4(), T7)
-n = findfirst(!iszero, b[2:end]) + 1
-order(T7, n)
+t = first(t for t in T7 if order(t) > 1 && b[t] != 0)
+order(t)
 ```
 
 The modifying integrator (`b ⋆ a = E`) and the substitution law itself:
 
 ```@example tut
-m = modifying_integrator(euler(), Trees(4))
-substitute(m, elementary_weights(euler(), Trees(4)), Trees(4)) ==
-    exact_solution(Trees(4))
+T4 = Trees(4)
+m = modifying_integrator(euler(), T4)
+substitute(m, bseries(euler(), T4)) == exact_solution(T4)
 ```
 
 ## Conjugacy (Algorithm 7)
@@ -151,10 +214,10 @@ order 3:
 
 ```@example tut
 T = Trees(6); E = exact_solution(T)
-x = [order(T, n) == 2 ? 1//5 : 0//1 for n in 1:length(T)]
-a = compose(compose(inverse(x, T), E, T), x, T)
-first_difference = order(T, findfirst(n -> a[n] != E[n], 1:length(T)))
-first_difference, conjugate_order(a, E, T)
+x = CentralBSeries(t -> order(t) == 2 ? 1//5 : 0//1, T)
+a = inv(x) * E * x
+first_difference = order(first(t for t in T if a[t] != E[t]))
+first_difference, conjugate_order(a, E)
 ```
 
 The next page applies this to general linear methods.
@@ -170,13 +233,13 @@ using BSeriesBook
 import BSeries, RootedTrees
 
 T = Trees(5)
-a = elementary_weights(kutta4(), T)
+a = bseries(kutta4(), T)
 
 s = BSeries.TruncatedBSeries{RootedTrees.RootedTree{Int, Vector{Int}},
                              eltype(a)}()
-s[RootedTrees.rootedtree(Int[])] = one(eltype(a))
-for n in 1:length(T)
-    s[RootedTrees.rootedtree(level_sequence(T, n))] = a[n]
+s[RootedTrees.rootedtree(Int[])] = a[empty_tree]
+for t in T
+    s[RootedTrees.rootedtree(level_sequence(t))] = a[t]
 end
 
 BSeries.order_of_accuracy(s)   # 4, as order_of_accuracy(kutta4(), T)

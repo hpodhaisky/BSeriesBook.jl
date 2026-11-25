@@ -85,15 +85,20 @@ order 5 and differs at order 6:
 ```@example glm
 res = underlying_one_step(glm, T)
 E = exact_solution(T)
-[(p, all(res.E[n] == E[n] for n in trees_of_order(T, p))) for p in 1:7]
+[(p, all(res.E[t] == E[t] for t in trees_of_order(T, p))) for p in 1:7]
 ```
 
-The starting method (in the original basis of the inputs) gives the
-B-series of the second input quantity, here on the trees of order ≤ 4:
+The starting method (in the original basis of the inputs) consists of
+one B-series per input, `res.S[i]`, with `res.S[i][empty_tree] = u[i]`; here the
+second input quantity:
 
 ```@example glm
-[res.ζ[n][2] for n in 1:8]'
+res.S[2]
 ```
+
+`M ∘ S = S ∘ Ẽ` can be read off component by component: one step of the
+underlying method, followed by the starting method, is
+`res.E * res.S[i]`.
 
 ## Checks
 
@@ -102,7 +107,7 @@ own B-series:
 
 ```@example glm
 rk = kutta4()
-underlying_one_step(GeneralLinearMethod(rk), T).E == elementary_weights(rk, T)
+underlying_one_step(GeneralLinearMethod(rk), T).E == bseries(rk, T)
 ```
 
 A method that is not in the form (6.6 a), the third-order Adams–Bashforth
@@ -126,9 +131,10 @@ stability_matrix(glm, 1//10)
 ## Run time
 
 For method (6.5 h)(ii) in `Rational{BigInt}`: [`underlying_one_step`](@ref)
-takes about 5 ms at order 8 and 0.1 s at order 10;
-`order_of_accuracy` about 0.4 s at order 8 and 4 s at order 10 (dominated
-by [`conjugacy_step`](@ref), Algorithm 7).
+takes about 4 ms at order 8 and 44 ms at order 10; `order_of_accuracy`
+about 0.12 s at order 8 and 3.8 s at order 10 (dominated by
+[`conjugacy_step`](@ref), Algorithm 7). Measured with
+`benchmark/compare.jl`, see [Benchmarks](@ref).
 
 ## References
 

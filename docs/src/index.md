@@ -4,10 +4,11 @@
 Numerical Methods**, Springer Series in Computational Mathematics 55,
 Springer, 2021 (2nd edition in preparation, with H. Podhaisky).*
 
-!!! warning "Version 0.1 — initial release, work in progress"
-    This is the first public version (0.1.0) of the package. It accompanies
-    a book that is still being revised, it does not yet cover all chapters,
-    and names and interfaces may change in later 0.x versions. Comments and
+!!! warning "Version 0.2 — work in progress"
+    The package accompanies a book that is still being revised, it does
+    not yet cover all chapters, and names and interfaces may change in
+    later 0.x versions (see `NEWS.md` in the repository for the changes
+    from 0.1). Comments and
     bug reports are very welcome on the
     [issue tracker](https://github.com/hpodhaisky/BSeriesBook.jl/issues).
 
@@ -17,8 +18,14 @@ notation**, so that every example can be recomputed:
 - trees are identified by their *standard number* `n` from Algorithm 3
   of the book; every tree except τ is the β-product
   `tₙ = t_{L[n]} ∘ t_{R[n]}` (see [Standard numbering](@ref));
-- a B-series is a plain vector `a` with `a[n] = a(tₙ)`;
-- names follow the book (`σ`, `γ`, `α`, `β`, `λ̂`, `Φ`), with ASCII aliases;
+- a B-series is a vector `a` with `a[n] = a(tₙ)`; its type records
+  a(∅) as in the book: [`GeneralBSeries`](@ref) (𝖡\*),
+  [`CentralBSeries`](@ref) (𝖡, a(∅) = 1) and
+  [`VectorFieldBSeries`](@ref) (𝖡⁰, a(∅) = 0), see
+  [Conventions](@ref);
+- names follow the book, in ASCII: `symmetry` (σ), `factorial` (t!),
+  `alpha`, `beta`, `lambda_hat` (λ̂), `slope`; the Greek symbols `σ`,
+  `α`, `β` and `∅` are also available as aliases;
 - arithmetic is exact (`Rational{BigInt}`) by default;
 - algorithms, sections, equations and tables are cited with their numbers
   in the printed book (1st edition), e.g. "Algorithm 3", "(6.6 d)".
@@ -65,7 +72,7 @@ T = Trees(5)
 ```
 
 ```@example index
-[bracket(T, n) for n in 1:8]
+[bracket(t) for t in T if order(t) <= 4]
 ```
 
 ```@example index
@@ -84,13 +91,15 @@ of Chapter 6, and [Benchmarks](@ref) compares the run time with BSeries.jl.
 | Section 2.4, Algorithm 2: unrooted and non-superfluous unrooted trees | [`count_unrooted_trees`](@ref) |
 | Section 2.5, Algorithm 3: generate trees (standard numbering, `L`, `R`, `prod`) | [`generate_trees`](@ref) |
 | Section 2.5, Algorithm 4: generate tree functions (`Bminus`, `factorial`, `symmetry`) | [`tree_functions`](@ref) |
-| Section 2.5: σ, t!, α, β; β-product; B⁺ form | [`Trees`](@ref), [`σ`](@ref), [`γ`](@ref), [`α`](@ref), [`β`](@ref), [`beta_product`](@ref), [`children`](@ref), [`bracket`](@ref) |
-| Section 3.5: exact solution E(t) = 1/t! | [`exact_solution`](@ref) |
+| Section 2.5: σ, t!, α, β; β-product; B⁺ form | [`Trees`](@ref), [`symmetry`](@ref), [`Tree`](@ref), [`factorial`](@ref factorial(::Tree)), [`alpha`](@ref), [`beta`](@ref), [`beta_product`](@ref), [`children`](@ref), [`bracket`](@ref) |
+| Section 3.4: the sets 𝖡\*, 𝖡, 𝖡⁰ | [`GeneralBSeries`](@ref), [`CentralBSeries`](@ref), [`VectorFieldBSeries`](@ref) |
+| Section 3.5: exact solution E(t) = 1/t!, E^(θ) | [`exact_solution`](@ref), [`rescale`](@ref) |
+| Section 3.5: the map slope, D, aD; implicit stages | [`slope`](@ref) |
 | Section 3.9, Algorithms 5 and 6: evaluate λ (and its efficient form λ̂) | [`lambda_matrix`](@ref), [`lambda_hat`](@ref) |
-| Section 3.9: composition and inverse | [`compose`](@ref), [`inverse`](@ref) |
+| Section 3.9: composition and inverse | [`compose`](@ref) (`a * b`), [`inverse`](@ref) (`inv(a)`) |
 | Section 3.9: substitution (Chartier–Hairer–Vilmart) | [`substitute`](@ref) |
 | Backward error analysis | [`modified_equation`](@ref), [`modifying_integrator`](@ref) |
-| Section 3.6: elementary weights, order of RK methods | [`elementary_weights`](@ref), [`order_of_accuracy`](@ref) |
+| Section 3.6: elementary weights, B-series and order of RK methods | [`elementary_weights`](@ref), [`bseries`](@ref), [`order_of_accuracy`](@ref) |
 | Section 5.3: stability function | [`stability_polynomial_coefficients`](@ref) |
 | Section 6.6, Algorithm 7: are two central B-series conjugate? | [`conjugacy_step`](@ref), [`conjugate_order`](@ref) |
 | Section 6.4: general linear methods | [`GeneralLinearMethod`](@ref), [`stability_matrix`](@ref) |
@@ -122,7 +131,7 @@ If you use the package, please cite the book and the package:
   title  = {{BSeriesBook.jl}: {J}ulia companion to the book
             ``{B}-Series: Algebraic Analysis of Numerical Methods''},
   year   = {2026},
-  note   = {Version 0.1},
+  note   = {Version 0.2},
   url    = {https://github.com/hpodhaisky/BSeriesBook.jl}
 }
 ```

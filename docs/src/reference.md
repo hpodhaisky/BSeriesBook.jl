@@ -14,20 +14,22 @@ BSeriesBook
 
 ```@docs
 Trees
+Tree
+number
 generate_trees
 TreeTable
 ProductTable
 tree_functions
 TreeFunctions
 order
-σ
-γ
-α
-β
+symmetry
+factorial(::Tree)
+alpha
+beta
 trees_of_order
 beta_product
 children
-tree_number
+bplus
 level_sequence
 bracket
 Splitting
@@ -39,8 +41,17 @@ count_unrooted_trees
 ## Chapter 3: B-series
 
 ```@docs
+AbstractBSeries
+GeneralBSeries
+CentralBSeries
+VectorFieldBSeries
+empty_tree
+coefficients
+Base.zero(::AbstractBSeries)
 exact_solution
 identity_series
+rescale
+slope
 lambda_matrix
 lambda_hat
 compose

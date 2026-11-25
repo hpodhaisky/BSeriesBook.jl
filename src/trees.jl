@@ -19,11 +19,11 @@ end
 
 ProductTable() = ProductTable(Dict{Tuple{Int,Int},Int}())
 
-Base.getindex(P::ProductTable, ℓ::Integer, r::Integer) = P.entries[(ℓ, r)]
-Base.setindex!(P::ProductTable, n::Integer, ℓ::Integer, r::Integer) =
-    (P.entries[(ℓ, r)] = n)
-Base.haskey(P::ProductTable, ℓ::Integer, r::Integer) =
-    haskey(P.entries, (ℓ, r))
+Base.getindex(P::ProductTable, l::Integer, r::Integer) = P.entries[(l, r)]
+Base.setindex!(P::ProductTable, n::Integer, l::Integer, r::Integer) =
+    (P.entries[(l, r)] = n)
+Base.haskey(P::ProductTable, l::Integer, r::Integer) =
+    haskey(P.entries, (l, r))
 
 """
     TreeTable
@@ -76,15 +76,15 @@ function generate_trees(p_max::Integer)
     for p in 2:p_max
         first[p] = n + 1
         for r in 1:last[p-1]
-            for ℓ in first[p-order[r]]:last[p-order[r]]
-                if ℓ == 1 || r ≤ R[ℓ]
+            for l in first[p-order[r]]:last[p-order[r]]
+                if l == 1 || r <= R[l]
                     n = n + 1
-                    prod[ℓ, r] = n
-                    push!(L, ℓ)
+                    prod[l, r] = n
+                    push!(L, l)
                     push!(R, r)
                     push!(order, p)
                 else
-                    prod[ℓ, r] = prod[prod[L[ℓ], r], R[ℓ]]
+                    prod[l, r] = prod[prod[L[l], r], R[l]]
                 end
             end
         end
@@ -127,8 +127,8 @@ function tree_functions(T::TreeTable)
     factorial[1] = 1
     symmetry[1] = 1
     for n in 2:N
-        factorial[n] = factorial[L[n]] * factorial[R[n]] *
-                       order[n] ÷ order[L[n]]
+        factorial[n] = div(factorial[L[n]] * factorial[R[n]] * order[n],
+                           order[L[n]])
         Bminus[n] = pad(last[order[n]-1], Bminus[L[n]])
         Bminus[n][R[n]] = Bminus[n][R[n]] + 1
         symmetry[n] = symmetry[L[n]] * symmetry[R[n]] * Bminus[n][R[n]]
@@ -163,8 +163,9 @@ const Partition = Tuple{Int,Vector{Int},Int,Int}
 """
     Trees(p_max)
 
-All trees up to order `p_max` with their tree functions; the object most
-other functions of the package take as first argument.
+All trees up to order `p_max` with their tree functions.  `T[n]` is the
+[`Tree`](@ref) with standard number `n`; iterating over `T` gives all
+trees in standard order.
 """
 struct Trees
     table::TreeTable
@@ -185,113 +186,177 @@ Base.show(io::IO, T::Trees) =
     print(io, "Trees: ", length(T), " trees up to order ", T.table.p_max)
 
 """
-    order(T, n), order(T)
+    Tree
 
-Order |t_n| (number of vertices) of the tree with standard number `n`;
-without `n`, the vector of the orders of all trees.  Book: Section 2.5.
-"""
-order(T::Trees, n) = T.table.order[n]
-order(T::Trees) = T.table.order
+A rooted tree: its standard number together with the [`Trees`](@ref) it
+belongs to.  Obtained as `T[n]`, by iterating over `T`, or from other
+trees ([`children`](@ref), [`beta_product`](@ref), [`bplus`](@ref));
+[`number`](@ref) gives the standard number.
 
+A tree is not an integer: functions on trees take a `Tree`, so that a
+tree cannot be confused with an order, a count or an index.  Two trees
+are equal if they have the same standard number (the numbering does not
+depend on the maximal order).  A B-series `a` is indexed by trees,
+`a[t]` = a(t).
 """
-    σ(T, n), symmetry(T, n)
+struct Tree
+    T::Trees
+    n::Int
+    function Tree(T::Trees, n::Integer)
+        1 <= n <= length(T) || throw(BoundsError(T, n))
+        return new(T, n)
+    end
+end
 
-Symmetry σ(t_n).  Book: Section 2.5.
-"""
-σ(T::Trees, n) = T.fns.symmetry[n]
-const symmetry = σ
-
-"""
-    γ(T, n), density(T, n)
-
-Tree factorial t_n! (called the density γ(t) in some of the literature).
-Book: Section 2.5.
-"""
-γ(T::Trees, n) = T.fns.factorial[n]
-const density = γ
-
-"""
-    α(T, n)
-
-Number of essentially different ways of labelling t_n:
-α(t) = |t|! / (σ(t) t!).  Book: Section 2.5.
-"""
-α(T::Trees, n) = factorial(big(order(T, n))) ÷ (σ(T, n) * γ(T, n))
+Base.getindex(T::Trees, n::Integer) = Tree(T, n)
+Base.firstindex(::Trees) = 1
+Base.lastindex(T::Trees) = length(T)
+Base.eltype(::Type{Trees}) = Tree
+Base.iterate(T::Trees, n = 1) = n > length(T) ? nothing : (Tree(T, n), n + 1)
 
 """
-    β(T, n)
+    number(t::Tree) -> Int
 
-β(t) = |t|! / σ(t).  Book: Section 2.5.
+The standard number n of t = t_n (Algorithm 3 of the book).
 """
-β(T::Trees, n) = factorial(big(order(T, n))) ÷ σ(T, n)
+number(t::Tree) = t.n
 
-"""
-    trees_of_order(T, p)
-
-The standard numbers of the trees of order `p`.
-"""
-trees_of_order(T::Trees, p) = T.table.first[p]:T.table.last[p]
+Base.:(==)(s::Tree, t::Tree) = s.n == t.n
+Base.hash(t::Tree, h::UInt) = hash(t.n, hash(:Tree, h))
+Base.isless(s::Tree, t::Tree) = isless(s.n, t.n)
+Base.show(io::IO, t::Tree) = print(io, "t", t.n, " = ", bracket(t))
 
 """
-    beta_product(T, ℓ, r)
+    order(t::Tree)
 
-The β-product t_ℓ ∘ t_r (graft t_r onto the root of t_ℓ), as a standard
-number.  Book: Section 2.2.
+Order |t| (number of vertices).  Book: Section 2.5.
 """
-beta_product(T::Trees, ℓ, r) = T.table.prod[ℓ, r]
+order(t::Tree) = t.T.table.order[t.n]
 
 """
-    children(T, n)
+    symmetry(t::Tree)
 
-The trees of B⁻(t_n), with repetitions, in increasing standard number;
-t_n = [t_{k₁} t_{k₂} ⋯ t_{k_m}].
+Symmetry σ(t).  Book: Section 2.5.  Alias: `σ`.
 """
-function children(T::Trees, n)
+symmetry(t::Tree) = t.T.fns.symmetry[t.n]
+
+"""
+    factorial(t::Tree)
+
+The factorial t! of a tree (the array `factorial` of Algorithm 4;
+sometimes called the density γ(t)).  A method of `Base.factorial`:
+`factorial(5)` is still 120.  Book: Section 2.5.
+"""
+Base.factorial(t::Tree) = t.T.fns.factorial[t.n]
+
+"""
+    alpha(t::Tree)
+
+Number of essentially different ways of labelling t:
+α(t) = |t|! / (σ(t) t!).  Book: Section 2.5.  Alias: `α`.
+"""
+alpha(t::Tree) = div(factorial(big(order(t))), symmetry(t) * factorial(t))
+
+"""
+    beta(t::Tree)
+
+β(t) = |t|! / σ(t).  Book: Section 2.5.  Alias: `β`.
+"""
+beta(t::Tree) = div(factorial(big(order(t))), symmetry(t))
+
+# The symbols of the book, as aliases.
+const σ = symmetry
+const α = alpha
+const β = beta
+
+"""
+    trees_of_order(T, p) -> Vector{Tree}
+
+The trees of order `p`, in standard order.
+"""
+trees_of_order(T::Trees, p::Integer) = [Tree(T, n) for n in tree_range(T, p)]
+
+# Internal: the standard numbers of the trees of order p.
+tree_range(T::Trees, p) = T.table.first[p]:T.table.last[p]
+
+"""
+    beta_product(s::Tree, t::Tree) -> Tree
+
+The β-product s ∘ t (graft t onto the root of s).  Book: Section 2.2.
+"""
+function beta_product(s::Tree, t::Tree)
+    T = s.T.table.p_max >= t.T.table.p_max ? s.T : t.T
+    order(s) + order(t) <= T.table.p_max || throw(DomainError(
+        (s, t), "the product has order > $(T.table.p_max)"))
+    return Tree(T, T.table.prod[s.n, t.n])
+end
+
+"""
+    children(t::Tree) -> Vector{Tree}
+
+The trees of B⁻(t), with repetitions, in increasing standard number:
+t = [t₁ t₂ ⋯ t_m].
+"""
+children(t::Tree) = [Tree(t.T, k) for k in child_numbers(t.T, t.n)]
+
+"""
+    bplus(T, kids) -> Tree
+
+The tree [t₁ ⋯ t_m] with the given children (B⁺ of a forest); the
+inverse of [`children`](@ref).  `bplus(T, Tree[])` is τ.
+"""
+function bplus(T::Trees, kids::AbstractVector{Tree})
+    sum(order, kids; init = 0) < T.table.p_max || throw(DomainError(
+        kids, "the tree has order > $(T.table.p_max)"))
+    return Tree(T, tree_number(T, [number(k) for k in kids]))
+end
+
+"""
+    level_sequence(t::Tree) -> Vector{Int}
+
+Level sequence of t (root at level 1, depth-first, children in
+decreasing standard number).  Used to compare with RootedTrees.jl.
+"""
+level_sequence(t::Tree) = level_sequence_numbers(t.T, t.n, 1)
+
+"""
+    bracket(t::Tree) -> String
+
+The tree written with B⁺ brackets, e.g. `"[τ[τ]]"`.
+"""
+bracket(t::Tree) = bracket_string(t.T, t.n)
+
+# ---- internal versions on standard numbers (tables, fast loops) ----------
+
+function child_numbers(T::Trees, n)
     B = T.fns.Bminus[n]
     return [k for k in eachindex(B) for _ in 1:B[k]]
 end
 
-"""
-    tree_number(T, kids)
-
-The standard number of the tree [t_{k₁} ⋯ t_{k_m}] with the given children
-(B⁺ of a forest); the inverse of [`children`](@ref).
-"""
 function tree_number(T::Trees, kids::AbstractVector{<:Integer})
     n = 1
     for k in sort(kids; rev = true)
-        n = beta_product(T, n, k)
+        n = T.table.prod[n, k]
     end
     return n
 end
 
-"""
-    level_sequence(T, n)
-
-Level sequence of t_n (root at level 1, depth-first, children in
-decreasing standard number).  Used to compare with RootedTrees.jl.
-"""
-function level_sequence(T::Trees, n, level = 1)
+function level_sequence_numbers(T::Trees, n, level)
     seq = [level]
-    for k in reverse(children(T, n))
-        append!(seq, level_sequence(T, k, level + 1))
+    for k in reverse(child_numbers(T, n))
+        append!(seq, level_sequence_numbers(T, k, level + 1))
     end
     return seq
 end
 
-"""
-    bracket(T, n)
-
-The tree t_n written with B⁺ brackets, e.g. `"[τ[τ]]"`.
-"""
-function bracket(T::Trees, n)
+function bracket_string(T::Trees, n)
     n == 1 && return "τ"
-    kids = children(T, n)
+    kids = child_numbers(T, n)
     parts = String[]
     for k in unique(kids)
         m = count(==(k), kids)
-        s = bracket(T, k)
-        push!(parts, m == 1 ? s : s * superscript(m))
+        str = bracket_string(T, k)
+        push!(parts, m == 1 ? str : str * superscript(m))
     end
     return "[" * join(parts) * "]"
 end
@@ -331,8 +396,8 @@ function splittings(T::Trees)
         add!(k, F, m) = (key = (k, sort(F)); mult[key] = get(mult, key, 0) + m)
         for (k, F, m) in S[i]
             add!(k, [F; j], m)
-            for (ℓ, G, m′) in S[j]
-                add!(prod[k, ℓ], [F; G], m * m′)
+            for (l, G, m2) in S[j]
+                add!(prod[k, l], [F; G], m * m2)
             end
         end
         S[n] = sort!([(k, F, m) for ((k, F), m) in mult])

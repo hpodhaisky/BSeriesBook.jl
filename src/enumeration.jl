@@ -30,9 +30,9 @@ function count_trees(p_max::Integer)
     for i in 2:p_max-1
         for j in p_max:-1:1
             a = Ntrees[i]
-            for k in 1:(j-1)÷i
+            for k in 1:div(j - 1, i)
                 Ntrees[j] = Ntrees[j] + a * Ntrees[j-i*k]
-                a = a * (Ntrees[i] + k) ÷ (k + 1)
+                a = div(a * (Ntrees[i] + k), k + 1)
             end
         end
     end
@@ -59,11 +59,11 @@ function count_unrooted_trees(p_max::Integer)
             Xtrees[i+j] = Xtrees[i+j] + Ntrees[i] * Ntrees[j]
         end
     end
-    for i in 1:p_max÷2
+    for i in 1:div(p_max, 2)
         Ytrees[2*i] = Ntrees[i]
     end
-    Utrees = Ntrees - (Xtrees - Ytrees) .÷ 2
-    UNtrees = Ntrees - (Xtrees + Ytrees) .÷ 2
+    Utrees = Ntrees - div.(Xtrees - Ytrees, 2)
+    UNtrees = Ntrees - div.(Xtrees + Ytrees, 2)
     # [book:TRsp20A:end]
     return Utrees, UNtrees
 end

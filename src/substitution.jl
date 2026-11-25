@@ -13,13 +13,20 @@
 # Algebraic structures of B-series, Found. Comput. Math. 10 (2010).
 
 """
-    join_roots(T, s, u)
+    join_roots(s::Tree, t::Tree) -> Tree
 
-The tree obtained from t_s and t_u by identifying their roots,
-`[B⁻(t_s) B⁻(t_u)]` (Butcher's product t × t′).
+The tree obtained from s and t by identifying their roots,
+`[B⁻(s) B⁻(t)]` (Butcher's product s × t).
 """
-join_roots(T::Trees, s, u) =
-    tree_number(T, [children(T, s); children(T, u)])
+function join_roots(s::Tree, t::Tree)
+    T = s.T.table.p_max >= t.T.table.p_max ? s.T : t.T
+    order(s) + order(t) - 1 <= T.table.p_max || throw(DomainError(
+        (s, t), "the tree has order > $(T.table.p_max)"))
+    return Tree(T, join_root_numbers(T, s.n, t.n))
+end
+
+join_root_numbers(T::Trees, s, u) =
+    tree_number(T, [child_numbers(T, s); child_numbers(T, u)])
 
 """
     tree_partitions(T) -> Vector{Vector{Partition}}
@@ -44,9 +51,9 @@ function tree_partitions(T::Trees)
         mult = Dict{Tuple{Int,Vector{Int},Int},Int}()
         add!(k, F, s, m) =
             (key = (k, sort(F), s); mult[key] = get(mult, key, 0) + m)
-        for (k, F, s, m) in P[i], (ℓ, G, u, m′) in P[j]
-            add!(k, [F; G; ℓ], prod[s, u], m * m′)          # edge cut
-            add!(prod[k, ℓ], [F; G], join_roots(T, s, u), m * m′)
+        for (k, F, s, m) in P[i], (l, G, u, m2) in P[j]
+            add!(k, [F; G; l], prod[s, u], m * m2)          # edge cut
+            add!(prod[k, l], [F; G], join_root_numbers(T, s, u), m * m2)
         end
         P[n] = sort!([(k, F, s, m) for ((k, F, s), m) in mult])
     end
@@ -55,26 +62,29 @@ function tree_partitions(T::Trees)
 end
 
 """
-    substitute(b, a, T) -> Vector
+    substitute(b::VectorFieldBSeries, a::AbstractBSeries)
 
-The substitution b ⋆ a of the B-series b of a vector field (b(∅) = 0,
-not stored) into the B-series a:
+The substitution b ⋆ a of the B-series b ∈ 𝖡⁰ of a vector field into the
+B-series a: the method a applied to the vector field h⁻¹ B_h(b),
+    (b ⋆ a)(∅) = a(∅),
     (b ⋆ a)(t) = Σ_partitions b(pieces) a(skeleton).
-`(b ⋆ a)(∅) = a(∅)`.  Same argument order as `BSeries.substitute`.
+The result has the type of `a`.  Same argument order as
+`BSeries.substitute`.
 
 Book: Section 3.9; Chartier–Hairer–Vilmart (2010), Section 3.2.
 """
-function substitute(b::AbstractVector, a::AbstractVector, T::Trees)
-    P = tree_partitions(T)
+function substitute(b::VectorFieldBSeries, a::AbstractBSeries)
+    check_trees(a, b)
+    P = tree_partitions(a.T)
     c = zeros(promote_type(eltype(a), eltype(b)), length(P))
     for n in eachindex(P), (k, F, s, m) in P[n]
         c[n] += m * b[k] * forest_value(b, F) * a[s]
     end
-    return c
+    return make(a.T, empty_value(a), c)
 end
 
 """
-    modified_equation(a, T) -> Vector
+    modified_equation(a::CentralBSeries) -> VectorFieldBSeries
 
 The B-series b of the modified vector field of a method with B-series a:
 the exact flow of y′ = h⁻¹ B_h(b)(y) is the method, b ⋆ E = a.  Solved
@@ -86,8 +96,7 @@ b(t) occurs.  For a method of order p, b(t) = 0 for 1 < |t| ≤ p.
 Book: backward error analysis (not in the 1st edition); Hairer, Lubich,
 Wanner, Geometric Numerical Integration, Chapter IX.
 """
-modified_equation(a::AbstractVector, T::Trees) =
-    solve_substitution(a, exact_solution(T), T)
+modified_equation(a::CentralBSeries) = solve_substitution(a, exact_solution(a.T))
 
 """
     modified_equation(rk::RungeKuttaMethod, T)
@@ -95,25 +104,28 @@ modified_equation(a::AbstractVector, T::Trees) =
 The modified vector field of the Runge–Kutta method `rk`.
 """
 modified_equation(rk::RungeKuttaMethod, T::Trees) =
-    modified_equation(bseries(rk, T), T)
+    modified_equation(bseries(rk, T))
 
 """
-    modifying_integrator(a, T) -> Vector
+    modifying_integrator(a::CentralBSeries) -> VectorFieldBSeries
+    modifying_integrator(rk::RungeKuttaMethod, T)
 
 The B-series b of the vector field to which the method with B-series a
 must be applied to give the exact flow: b ⋆ a = E.  Solved tree by tree
-from b(t) a(τ) = E(t) − Σ_{other partitions} b(pieces) a(skeleton).
+from b(t) a(τ) = E(t) − Σ_{other partitions} b(pieces) a(skeleton);
+requires a(τ) ≠ 0.
 """
-modifying_integrator(a::AbstractVector, T::Trees) =
-    solve_substitution(exact_solution(T), a, T)
+modifying_integrator(a::CentralBSeries) = solve_substitution(exact_solution(a.T), a)
 
 modifying_integrator(rk::RungeKuttaMethod, T::Trees) =
-    modifying_integrator(bseries(rk, T), T)
+    modifying_integrator(bseries(rk, T))
 
-# Solve b ⋆ e = target for b, tree by tree.  Every partition other than
-# the trivial one (k = n, no cut) involves b only on trees of lower order.
-function solve_substitution(target, e, T::Trees)
-    P = tree_partitions(T)
+# Solve b ⋆ e = target for b ∈ 𝖡⁰, tree by tree.  Every partition other
+# than the trivial one (k = n, no cut) involves b only on trees of lower
+# order.
+function solve_substitution(target::CentralBSeries, e::CentralBSeries)
+    check_trees(target, e)
+    P = tree_partitions(e.T)
     S = promote_type(eltype(target), eltype(e))
     b = zeros(S, length(P))
     for n in eachindex(P)
@@ -124,5 +136,5 @@ function solve_substitution(target, e, T::Trees)
         end
         b[n] = r / e[1]
     end
-    return b
+    return VectorFieldBSeries(e.T, b)
 end

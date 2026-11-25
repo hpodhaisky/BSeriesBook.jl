@@ -11,11 +11,13 @@
 # for which τ → 0 are conjugate").
 
 """
-    conjugacy_step(a, b, T, p) -> (true, x a x⁻¹, x) or (false,)
+    conjugacy_step(a::CentralBSeries, b::CentralBSeries, p) -> (; x, conjugated) or nothing
 
 Decide whether central B-series a and b with a = b + O_p are conjugate to
 order p, i.e. whether there is x, differing from the identity only on the
-trees of order p − 1, with x a x⁻¹ = b + O_{p+1}.
+trees of order p − 1, with x a x⁻¹ = b + O_{p+1}.  If so, return x and
+`conjugated` = x a x⁻¹ (which agrees with b for |t| ≤ p); otherwise
+`nothing`.
 
 The values x(t), |t| = p − 1, are found from the conditions
 (xa)(t ∘ τ) = (bx)(t ∘ τ).  These form a linear system, which is coupled
@@ -25,27 +27,32 @@ exactly.  Then the conditions for all trees of order p are tested.
 Book: Section 6.6, Algorithm 7 (corrected for the 2nd edition: the
 1st edition computes each x(t) from t ∘ τ alone, which fails from p = 4).
 """
-function conjugacy_step(a::AbstractVector, b::AbstractVector, T::Trees, p::Integer)
-    unknowns = collect(trees_of_order(T, p - 1))
-    rows = [beta_product(T, t, 1) for t in unknowns]
-    residual(x) = compose(x, a, T) .- compose(b, x, T)
-    r0 = residual(zero(a))
+function conjugacy_step(a::CentralBSeries, b::CentralBSeries, p::Integer)
+    check_trees(a, b)
+    T = a.T
+    unknowns = collect(tree_range(T, p - 1))
+    rows = [T.table.prod[t, 1] for t in unknowns]
+    # (xa − bx)(t) as a function of the values of x on `unknowns`
+    function residual(v)
+        x = zero(a.coef)
+        x[unknowns] = v
+        return compose_coefficients(x, a.coef, 1, T) .-
+               compose_coefficients(b.coef, x, 1, T)
+    end
+    z = zeros(eltype(a), length(unknowns))
+    r0 = residual(z)
     M = zeros(eltype(a), length(rows), length(unknowns))
-    for (j, t) in enumerate(unknowns)
-        e = zero(a)
-        e[t] = 1
+    for j in eachindex(unknowns)
+        e = copy(z)
+        e[j] = 1
         M[:, j] = residual(e)[rows] .- r0[rows]
     end
     sol = solve_exact(M, -r0[rows])
-    sol === nothing && return (false,)
-    x = zero(a)
+    sol === nothing && return nothing
+    all(iszero(r) for r in residual(sol)[tree_range(T, p)]) || return nothing
+    x = identity_series(T, eltype(a))
     x[unknowns] = sol
-    xa = compose(x, a, T)
-    bx = compose(b, x, T)
-    for t in trees_of_order(T, p)
-        xa[t] == bx[t] || return (false,)
-    end
-    return (true, compose(xa, inverse(x, T), T), x)
+    return (; x, conjugated = x * a * inv(x))
 end
 
 # Solve M y = v by Gaussian elimination in exact arithmetic; free unknowns
@@ -70,7 +77,7 @@ function solve_exact(M::AbstractMatrix, v::AbstractVector; atol = 0)
         push!(pivots, col)
         row += 1
     end
-    all(abs(A[i, end]) ≤ atol for i in row:m) || return nothing
+    all(abs(A[i, end]) <= atol for i in row:m) || return nothing
     y = zeros(eltype(A), n)
     for (i, col) in enumerate(pivots)
         y[col] = A[i, end]
