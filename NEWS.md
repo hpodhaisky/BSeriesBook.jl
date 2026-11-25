@@ -15,7 +15,20 @@ Breaking release: trees and B-series have types.
   `CentralBSeries(t -> 1 // factorial(t), T)`. No run-time cost: a loop
   over trees compiles to the same code as a loop over numbers. The
   tables (`L`, `R`, `prod`, splittings, partitions) stay tables of
-  standard numbers.
+  standard numbers internally.
+- Forests have a type: `Forest`, the sorted vector of its trees, shown as
+  a monomial (`τ²[τ]`). `children(t)` returns a `Forest`;
+  `order(F)` is its order.
+- Splittings and partitions are structs with named fields, per tree:
+  `splittings(t)` returns `Splitting`s (`subtree`, `forest`,
+  `multiplicity`) and `tree_partitions(t)` returns `Partition`s
+  (`root_piece`, `pieces`, `skeleton`, `multiplicity`). The tables on
+  standard numbers for all trees, `splittings(T)` and
+  `tree_partitions(T)`, are no longer public.
+- No longer exported (use `BSeriesBook.name`): the building blocks of
+  `Trees` (`generate_trees`, `tree_functions`, `TreeTable`,
+  `TreeFunctions`, `ProductTable`), `level_sequence`, `join_roots`,
+  `count_unrooted_trees`, `stage_weights` and `stability_matrix`.
 
 - B-series are no longer plain vectors but have one of three types, the
   sets of Section 3.4 of the book: `GeneralBSeries` (𝖡\*, a(∅) stored),
@@ -44,9 +57,8 @@ Breaking release: trees and B-series have types.
   starting method as `S`, a vector of `GeneralBSeries` (one per input,
   `S[i][empty_tree] = u[i]`), instead of the vectors `ζ`; the fields `ξ`, `η`,
   `ηD` are now `xi`, `eta`, `etaD`.
-- New: `slope(y, aii = 0)`, the series `yD` of `hf(B_h(y)y₀)`, and for
-  `aii ≠ 0` the solution of the implicit relation `w = y + aii·wD` of a
-  diagonally implicit stage (the function f of J. C. Butcher).
+- New: `slope(y, gamma = 0)`, the series `yD` of `hf(B_h(y)y₀)`, and for
+  `gamma ≠ 0` the solution of the implicit relation `w = y + γ wD`.
 - New: `CentralBSeries{S}(a)` (and likewise for the other types) changes
   the number type, e.g. `CentralBSeries{BigFloat}(exact_solution(T))`.
 - New: `rescale(a, θ)`, the B-series for the step size θh

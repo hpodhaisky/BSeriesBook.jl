@@ -29,22 +29,67 @@ join_root_numbers(T::Trees, s, u) =
     tree_number(T, [child_numbers(T, s); child_numbers(T, u)])
 
 """
-    tree_partitions(T) -> Vector{Vector{Partition}}
+    Partition
 
-For every tree t_n all partitions `(k, F, s, m)`: root piece t_k, other
-pieces F, skeleton t_s, multiplicity m.  Built once per `Trees` object by
-the β-product recursion: for t_n = t_i ∘ t_j combine every partition
-(k, F, s) of t_i with every partition (ℓ, G, u) of t_j;
-- the edge to t_j is cut:  root piece t_k, pieces F ∪ G ∪ {t_ℓ},
-  skeleton t_s ∘ t_u;
-- it is kept:  root piece t_k ∘ t_ℓ, pieces F ∪ G, skeleton t_s × t_u
-  (roots identified, [`join_roots`](@ref)).
-Summed over F, the multiplicities of t_n add up to 2^(|t_n| - 1).
+One partition of a tree t into pieces, obtained by cutting a set of
+edges, with the fields
+- `root_piece::Tree`: the piece containing the root of t;
+- `pieces::Forest`: the other pieces;
+- `skeleton::Tree`: t with every piece contracted to a vertex;
+- `multiplicity::Int`: the number of edge sets giving this triple.
+Returned by [`tree_partitions`](@ref).  Book: Section 3.9.
 """
-function tree_partitions(T::Trees)
+struct Partition
+    root_piece::Tree
+    pieces::Forest
+    skeleton::Tree
+    multiplicity::Int
+end
+
+Base.show(io::IO, p::Partition) = print(io, "Partition(root piece ",
+    bracket(p.root_piece), ", pieces ", p.pieces, ", skeleton ",
+    bracket(p.skeleton), ", multiplicity ", p.multiplicity, ")")
+
+"""
+    tree_partitions(t::Tree) -> Vector{Partition}
+
+All partitions of t into pieces, obtained by cutting a set of edges:
+root piece, other pieces, skeleton and multiplicity.  The multiplicities
+add up to 2^(|t| - 1), the number of edge sets.
+
+The partitions of all trees are computed once per `Trees` object (on
+first use) by the β-product recursion: for t_n = t_i ∘ t_j combine every
+partition (t_k, F, t_s) of t_i with every partition (t_ℓ, G, t_u) of t_j;
+- the edge to t_j is cut:  root piece t_k, pieces F G t_ℓ,
+  skeleton t_s ∘ t_u;
+- it is kept:  root piece t_k ∘ t_ℓ, pieces F G, skeleton t_s × t_u
+  (roots identified, [`join_roots`](@ref)).
+
+```jldoctest
+julia> T = Trees(4);
+
+julia> tree_partitions(T[4])
+4-element Vector{Partition}:
+ Partition(root piece τ, pieces τ², skeleton [[τ]], multiplicity 1)
+ Partition(root piece τ, pieces [τ], skeleton [τ], multiplicity 1)
+ Partition(root piece [τ], pieces τ, skeleton [τ], multiplicity 1)
+ Partition(root piece [[τ]], pieces ∅, skeleton τ, multiplicity 1)
+```
+"""
+function tree_partitions(t::Tree)
+    T = t.T
+    tree(k) = Tree(T, k)
+    return [Partition(tree(k), Forest(tree.(F)), tree(s), m)
+            for (k, F, s, m) in partition_table(T)[t.n]]
+end
+
+# Internal: the partitions of all trees, on standard numbers, as entries
+# (k, F, s, m) = (root piece t_k, other pieces F, skeleton t_s,
+# multiplicity m), F sorted.
+function partition_table(T::Trees)
     T.parts[] === nothing || return T.parts[]
     (; L, R, prod) = T.table
-    P = Vector{Vector{Partition}}(undef, length(T))
+    P = Vector{Vector{PartitionEntry}}(undef, length(T))
     P[1] = [(1, Int[], 1, 1)]
     for n in 2:length(T)
         i, j = L[n], R[n]
@@ -75,7 +120,7 @@ Book: Section 3.9; Chartier–Hairer–Vilmart (2010), Section 3.2.
 """
 function substitute(b::VectorFieldBSeries, a::AbstractBSeries)
     check_trees(a, b)
-    P = tree_partitions(a.T)
+    P = partition_table(a.T)
     c = zeros(promote_type(eltype(a), eltype(b)), length(P))
     for n in eachindex(P), (k, F, s, m) in P[n]
         c[n] += m * b[k] * forest_value(b, F) * a[s]
@@ -125,7 +170,7 @@ modifying_integrator(rk::RungeKuttaMethod, T::Trees) =
 # order.
 function solve_substitution(target::CentralBSeries, e::CentralBSeries)
     check_trees(target, e)
-    P = tree_partitions(e.T)
+    P = partition_table(e.T)
     S = promote_type(eltype(target), eltype(e))
     b = zeros(S, length(P))
     for n in eachindex(P)

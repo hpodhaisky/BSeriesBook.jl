@@ -17,12 +17,11 @@ notation**, so that every example can be recomputed:
 
 - trees are identified by their *standard number* `n` from Algorithm 3
   of the book; every tree except τ is the β-product
-  `tₙ = t_{L[n]} ∘ t_{R[n]}` (see [Standard numbering](@ref));
-- a B-series is a vector `a` with `a[n] = a(tₙ)`; its type records
+  `tₙ = t_{L[n]} ∘ t_{R[n]}` (see the [Tutorial](@ref standard-numbering));
+- a B-series is a vector `a` indexed by trees, `a[t] = a(t)`; its type records
   a(∅) as in the book: [`GeneralBSeries`](@ref) (𝖡\*),
   [`CentralBSeries`](@ref) (𝖡, a(∅) = 1) and
-  [`VectorFieldBSeries`](@ref) (𝖡⁰, a(∅) = 0), see
-  [Conventions](@ref);
+  [`VectorFieldBSeries`](@ref) (𝖡⁰, a(∅) = 0);
 - names follow the book, in ASCII: `symmetry` (σ), `factorial` (t!),
   `alpha`, `beta`, `lambda_hat` (λ̂), `slope`; the Greek symbols `σ`,
   `α`, `β` and `∅` are also available as aliases;
@@ -79,33 +78,15 @@ T = Trees(5)
 order_of_accuracy(kutta4(), Trees(8))
 ```
 
-The [Tutorial](@ref) walks through the main functions, the page
-[Underlying one-step method](@ref glm) shows the general linear methods
-of Chapter 6, and [Benchmarks](@ref) compares the run time with BSeries.jl.
+The [Tutorial](@ref) explains the conventions and walks through the main
+computations, chapter by chapter, up to the
+[underlying one-step method](@ref glm) of Chapter 6. The
+[Reference](@ref) lists all functions in the order of the book;
+[Benchmarks](@ref) compares the run time with BSeries.jl.
 
-## What is implemented
+## Not yet implemented
 
-| Book | Julia |
-|:-----|:------|
-| Section 2.4, Algorithm 1: number of trees of each order | [`count_trees`](@ref) |
-| Section 2.4, Algorithm 2: unrooted and non-superfluous unrooted trees | [`count_unrooted_trees`](@ref) |
-| Section 2.5, Algorithm 3: generate trees (standard numbering, `L`, `R`, `prod`) | [`generate_trees`](@ref) |
-| Section 2.5, Algorithm 4: generate tree functions (`Bminus`, `factorial`, `symmetry`) | [`tree_functions`](@ref) |
-| Section 2.5: σ, t!, α, β; β-product; B⁺ form | [`Trees`](@ref), [`symmetry`](@ref), [`Tree`](@ref), [`factorial`](@ref factorial(::Tree)), [`alpha`](@ref), [`beta`](@ref), [`beta_product`](@ref), [`children`](@ref), [`bracket`](@ref) |
-| Section 3.4: the sets 𝖡\*, 𝖡, 𝖡⁰ | [`GeneralBSeries`](@ref), [`CentralBSeries`](@ref), [`VectorFieldBSeries`](@ref) |
-| Section 3.5: exact solution E(t) = 1/t!, E^(θ) | [`exact_solution`](@ref), [`rescale`](@ref) |
-| Section 3.5: the map slope, D, aD; implicit stages | [`slope`](@ref) |
-| Section 3.9, Algorithms 5 and 6: evaluate λ (and its efficient form λ̂) | [`lambda_matrix`](@ref), [`lambda_hat`](@ref) |
-| Section 3.9: composition and inverse | [`compose`](@ref) (`a * b`), [`inverse`](@ref) (`inv(a)`) |
-| Section 3.9: substitution (Chartier–Hairer–Vilmart) | [`substitute`](@ref) |
-| Backward error analysis | [`modified_equation`](@ref), [`modifying_integrator`](@ref) |
-| Section 3.6: elementary weights, B-series and order of RK methods | [`elementary_weights`](@ref), [`bseries`](@ref), [`order_of_accuracy`](@ref) |
-| Section 5.3: stability function | [`stability_polynomial_coefficients`](@ref) |
-| Section 6.6, Algorithm 7: are two central B-series conjugate? | [`conjugacy_step`](@ref), [`conjugate_order`](@ref) |
-| Section 6.4: general linear methods | [`GeneralLinearMethod`](@ref), [`stability_matrix`](@ref) |
-| Section 6.6: partitioned form (6.6 a), underlying one-step method (6.6 d), order | [`partitioned_form`](@ref), [`underlying_one_step`](@ref) |
-
-Not yet implemented (planned for later versions): elementary differentials
+Planned for later versions: elementary differentials
 and numerical evaluation of B-series, symplecticity and energy
 preservation, G-symplectic methods of Chapter 7, the integration methods
 and the B-group of Chapter 4.

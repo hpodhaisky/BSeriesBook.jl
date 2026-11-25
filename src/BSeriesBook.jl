@@ -27,31 +27,36 @@ include("substitution.jl")
 include("glm.jl")
 include("underlying.jl")
 
+# Not exported (use with the prefix `BSeriesBook.`): the building blocks
+# of `Trees` (`generate_trees`, `tree_functions`, `TreeTable`,
+# `TreeFunctions`, `ProductTable`), `level_sequence`, `join_roots`,
+# `count_unrooted_trees`, `stage_weights`, `stability_matrix`.
+
 # Chapter 2
-export ProductTable, TreeTable, TreeFunctions, Trees, Tree, number
-export generate_trees, tree_functions
+export Trees, Tree, number
 export order, symmetry, alpha, beta, σ, α, β   # and Base.factorial(t)
-export trees_of_order, beta_product, children, bplus, Splitting, splittings
-export level_sequence, bracket
-export count_trees, count_unrooted_trees
+export trees_of_order, beta_product, children, bplus, Forest
+export Splitting, splittings
+export bracket
+export count_trees
 
 # Chapter 3
 export AbstractBSeries, GeneralBSeries, CentralBSeries, VectorFieldBSeries
 export empty_tree, ∅, coefficients
 export exact_solution, identity_series, rescale
 export lambda_matrix, lambda_hat, compose, inverse, slope
-export Partition, tree_partitions, join_roots
+export Partition, tree_partitions
 export substitute, modified_equation, modifying_integrator
 
 # Chapters 1, 3, 5
-export RungeKuttaMethod, stages, stage_weights, elementary_weights, bseries
+export RungeKuttaMethod, stages, elementary_weights, bseries
 export order_of_accuracy, stability_polynomial_coefficients
 export euler, runge_midpoint, kutta4, kutta38, gauss2
 export butcher6a
 
 # Chapter 6
 export conjugacy_step
-export GeneralLinearMethod, inputs, stability_matrix
+export GeneralLinearMethod, inputs
 export is_partitioned_form, partitioned_form, underlying_one_step
 export conjugate_order
 

@@ -1,5 +1,7 @@
 using Test
 using BSeriesBook
+using BSeriesBook: generate_trees, tree_functions, count_unrooted_trees,
+                   level_sequence, join_roots, stage_weights, stability_matrix
 import BSeries
 import RootedTrees as RT
 
@@ -7,7 +9,6 @@ include("book_values.jl")
 
 # Map from the standard numbering to RootedTrees.jl trees (level sequences)
 rt(t::Tree) = RT.rootedtree(level_sequence(t))
-rt(T::Trees, n::Integer) = rt(T[n])        # entries of the splitting/partition tables
 
 randq(rng_state) = (rng_state[] = (1103515245 * rng_state[] + 12345) % 2^31;
                     (rng_state[] % 19 - 9) // (rng_state[] % 7 + 1))
@@ -74,7 +75,9 @@ end
     @test collect(T) == [T[n] for n in 1:length(T)] && first(T) == T[1]
     @test trees_of_order(T, 3) == [T[3], T[4]]
     @test beta_product(T[2], T[1]) == T[3] && join_roots(T[2], T[2]) == T[3]
-    @test bplus(T, Tree[]) == T[1] && children(T[1]) == Tree[]
+    @test bplus(T, Forest()) == T[1] && children(T[1]) == Forest()
+    @test children(T[6]) isa Forest && order(children(T[6])) == order(T[6]) - 1
+    @test Forest([T[2], T[1]]) == Forest([T[1], T[2]])
     @test T[17] == Trees(8)[17]              # the numbering does not depend on p_max
     @test_throws BoundsError T[18]
     @test_throws BoundsError T[0]
@@ -156,12 +159,12 @@ end
     @test all(slope(a)[t] == prod((a[k] for k in children(t)); init = 1)
               for t in T)
     @test slope(a, 0) == slope(a)
-    # implicit: dw = wD with w = y + aii·dw
-    for aii in (1 // 1, 1 // 2, big(-2) // 7)
-        dw = slope(a, aii)
-        @test dw == (a + aii * dw) * D
+    # implicit: dw = wD with w = y + gamma·dw
+    for gamma in (1 // 1, 1 // 2, big(-2) // 7)
+        dw = slope(a, gamma)
+        @test dw == (a + gamma * dw) * D
     end
-    # y = id, aii = 1: implicit Euler; aii = 1/2: stage of the implicit midpoint rule
+    # y = id, gamma = 1: implicit Euler; gamma = 1/2: stage of the implicit midpoint rule
     id = identity_series(T)
     @test id + slope(id, 1) == bseries(RungeKuttaMethod(fill(1 // 1, 1, 1), [1 // 1]), T)
     @test id + slope(id, 1 // 2) ==
@@ -199,15 +202,15 @@ end
 
 @testset "Ch. 2: splittings vs. RootedTrees.all_splittings (order 7)" begin
     T = Trees(7)
-    S = splittings(T)
     for n in 1:length(T)
         ours = Dict{Any,Int}()
-        for (k, F, m) in S[n]
-            key = (rt(T, k), sort([rt(T, f) for f in F]))
-            ours[key] = get(ours, key, 0) + m
+        for (; subtree, forest, multiplicity) in splittings(T[n])
+            @test order(subtree) + order(forest) == order(T[n])
+            key = (rt(subtree), sort([rt(f) for f in forest]))
+            ours[key] = get(ours, key, 0) + multiplicity
         end
         theirs = Dict{Any,Int}()
-        for (F, s) in zip(RT.all_splittings(rt(T, n))...)
+        for (F, s) in zip(RT.all_splittings(rt(T[n]))...)
             RT.order(s) == 0 && continue              # t' = ∅ is not stored
             key = (s, sort(collect(F)))
             theirs[key] = get(theirs, key, 0) + 1
@@ -253,16 +256,15 @@ end
     T = Trees(7)
     N = length(T)
     trees = [rt(t) for t in T]
-    P = tree_partitions(T)
     # partitions = sets of cut edges: 2^(|t|-1) of them
-    @test all(sum(m for (_, _, _, m) in P[n]) == 2^(order(T[n]) - 1)
-              for n in 1:N)
+    @test all(sum(p.multiplicity for p in tree_partitions(t)) == 2^(order(t) - 1)
+              for t in T)
     # pieces and skeletons agree with RootedTrees.PartitionIterator
     for n in 1:N
         ours = Dict{Any,Int}()
-        for (k, F, s, m) in P[n]
-            key = (sort([rt(T, f) for f in [F; k]]), rt(T, s))
-            ours[key] = get(ours, key, 0) + m
+        for p in tree_partitions(T[n])
+            key = (sort([rt(f) for f in [p.pieces; p.root_piece]]), rt(p.skeleton))
+            ours[key] = get(ours, key, 0) + p.multiplicity
         end
         theirs = Dict{Any,Int}()
         for (forest, skel) in RT.PartitionIterator(trees[n])

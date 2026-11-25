@@ -24,8 +24,7 @@ The values x(t), |t| = p − 1, are found from the conditions
 whenever a tree t ∘ τ can lose a leaf in more than one way; it is solved
 exactly.  Then the conditions for all trees of order p are tested.
 
-Book: Section 6.6, Algorithm 7 (corrected for the 2nd edition: the
-1st edition computes each x(t) from t ∘ τ alone, which fails from p = 4).
+Book: Section 6.6, Algorithm 7.
 """
 function conjugacy_step(a::CentralBSeries, b::CentralBSeries, p::Integer)
     check_trees(a, b)

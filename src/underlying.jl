@@ -192,7 +192,7 @@ function underlying_recursion(glm::GeneralLinearMethod, T::Trees)
     IminusV = r > 1 ? lu(Id - Vh) : nothing
     solve(v) = r > 1 ? IminusV \ v : v
     N = length(T)
-    Sp = splittings(T)
+    Sp = splitting_table(T)
     E = zeros(S, N)
     xi = Vector{Vector{S}}(undef, N)
     eta = Vector{Vector{S}}(undef, N)

@@ -19,17 +19,16 @@ makedocs(;
         canonical = "https://hpodhaisky.github.io/BSeriesBook.jl",
         edit_link = "main",
         assets = String[],
-        example_size_threshold = 32_000,   # the tree table on trees.md
+        example_size_threshold = 32_000,   # the tree table in the tutorial
     ),
     pages = [
         "Home" => "index.md",
         "Tutorial" => "tutorial.md",
-        "Standard numbering" => "trees.md",
-        "Conventions" => "conventions.md",
-        "Underlying one-step method" => "glm.md",
-        "Benchmarks" => "benchmarks.md",
-        "Reference" => "reference.md",
-        "Literature" => "literature.md",
+        "Reference" => [
+            "Functions" => "reference.md",
+            "Benchmarks" => "benchmarks.md",
+            "Literature" => "literature.md",
+        ],
     ],
     checkdocs = :exports,
 )

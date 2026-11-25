@@ -390,7 +390,7 @@ Base.:^(a::CentralBSeries, p::Integer) =
 
 # Kernel on coefficient vectors: a(∅) = 1, b(∅) = b0.
 function compose_coefficients(a::AbstractVector, b::AbstractVector, b0, T::Trees)
-    S = splittings(T)
+    S = splitting_table(T)
     ab = promote_type(eltype(a), eltype(b), typeof(b0)).(b0 .* a)
     for n in eachindex(S), (k, F, m) in S[n]
         ab[n] += m * b[k] * forest_value(a, F)
@@ -401,31 +401,27 @@ end
 forest_value(a, F) = prod((a[f] for f in F); init = one(eltype(a)))
 
 """
-    slope(y::CentralBSeries, aii = 0) -> VectorFieldBSeries
+    slope(y::CentralBSeries, gamma = 0) -> VectorFieldBSeries
 
-The B-series of hf(w), where w = y + aii · hf(w) (as B-series about y₀):
-returns dw = wD with w = y + aii·dw, from
-    dw(τ) = 1,   dw(tₙ) = dw(t_{L[n]}) w(t_{R[n]}),   w(tₙ) = y(tₙ) + aii·dw(tₙ),
+The B-series of hf(w), where w = y + γ hf(w) (as B-series about y₀):
+returns dw = wD with w = y + γ dw, from
+    dw(τ) = 1,   dw(tₙ) = dw(t_{L[n]}) w(t_{R[n]}),   w(tₙ) = y(tₙ) + γ dw(tₙ),
 in one loop over the standard numbering, without iteration.
 
-- `slope(y)` (aii = 0) is yD, the series of hf(B_h(y)y₀), for explicit
-  stages; `slope(identity_series(T))` is D itself.
-- `slope(y, aii)` is the stage derivative of a diagonally implicit stage
-  Yᵢ = (y₀ + Σ_{j<i} aᵢⱼ hF(Yⱼ)) + aᵢᵢ hF(Yᵢ), with y the series of the
-  explicit part: Fᵢ = slope(y, aᵢᵢ).  With y = id and aii = 1 the
-  stage w is the implicit Euler method.
+`slope(y)` (γ = 0) is yD, the series of hf(B_h(y)y₀);
+`slope(identity_series(T))` is D itself.  With y = id and γ = 1,
+w is the implicit Euler method.
 
-Book: Section 3.5 (the map slope, D ∈ 𝖡⁰, Theorem on aD); the function
-f of J. C. Butcher's paper on G6245 ("Solving implicit equations").
+Book: Section 3.5 (the map slope, D ∈ 𝖡⁰, Theorem on aD).
 """
-function slope(y::CentralBSeries, aii = 0)
+function slope(y::CentralBSeries, gamma = 0)
     (; L, R) = y.T.table
-    S = promote_type(eltype(y), typeof(aii))
+    S = promote_type(eltype(y), typeof(gamma))
     dw = zeros(S, length(y))
     w = zeros(S, length(y))
     for n in eachindex(dw)
         dw[n] = n == 1 ? one(S) : dw[L[n]] * w[R[n]]
-        w[n] = y[n] + aii * dw[n]
+        w[n] = y[n] + gamma * dw[n]
     end
     return VectorFieldBSeries(y.T, dw)
 end
@@ -443,7 +439,7 @@ inverse(a::CentralBSeries) = CentralBSeries(a.T, inverse_coefficients(a.coef, a.
 Base.inv(a::CentralBSeries) = inverse(a)
 
 function inverse_coefficients(a::AbstractVector, T::Trees)
-    S = splittings(T)
+    S = splitting_table(T)
     b = similar(a)
     for n in eachindex(S)
         b[n] = -a[n]

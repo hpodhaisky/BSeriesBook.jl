@@ -56,7 +56,7 @@ Generate all trees up to order `p_max` in the standard numbering.
 Book: Section 2.5, Algorithm 3 ("Generate trees").
 
 ```jldoctest
-julia> T = generate_trees(4);
+julia> T = BSeriesBook.generate_trees(4);
 
 julia> T.L[2:8], T.R[2:8]
 ([1, 2, 1, 3, 4, 1, 1], [1, 1, 2, 1, 1, 3, 4])
@@ -137,48 +137,45 @@ function tree_functions(T::TreeTable)
     return TreeFunctions(Bminus, factorial, symmetry)
 end
 
-"""
-    Splitting
-
-One splitting of a tree t: `(k, F, m)` stands for the subtree t' = t_k
-containing the root, the forest t ∖ t' = F (sorted standard numbers) and
-the number m of ways in which this pair arises.
-"""
-const Splitting = Tuple{Int,Vector{Int},Int}
-
-"""
-    Partition
-
-One partition of a tree t into subtrees, obtained by cutting a set of
-edges: `(k, F, s, m)` stands for the piece t_k containing the root of t,
-the other pieces F (sorted standard numbers), the skeleton t_s (each piece
-contracted to a vertex) and the number m of edge sets giving this triple.
-"""
-const Partition = Tuple{Int,Vector{Int},Int,Int}
+# Internal entries of the tables of splittings and partitions, on standard
+# numbers (fast loops): (k, F, m) and (k, F, s, m), see `splitting_table`
+# and `partition_table`.  The public views are `Splitting` and `Partition`.
+const SplittingEntry = Tuple{Int,Vector{Int},Int}
+const PartitionEntry = Tuple{Int,Vector{Int},Int,Int}
 
 # ---------------------------------------------------------------------------
 # Convenience: a table together with its tree functions
 # ---------------------------------------------------------------------------
 
 """
-    Trees(p_max)
+    Trees(p_max) -> Trees
 
-All trees up to order `p_max` with their tree functions.  `T[n]` is the
-[`Tree`](@ref) with standard number `n`; iterating over `T` gives all
-trees in standard order.
+Generate all rooted trees up to order `p_max` in the standard numbering,
+together with their tree functions (order, symmetry, factorial, ...).
+The result `T` is a collection of [`Tree`](@ref)s: `length(T)` is the
+number of trees, `T[n]` is the tree with standard number `n`, and
+iterating over `T` gives all trees in standard order.
+
+```jldoctest
+julia> T = Trees(4)
+Trees: 8 trees up to order 4
+
+julia> T[4]
+t4 = [[τ]]
+```
 """
 struct Trees
     table::TreeTable
     fns::TreeFunctions
-    splits::Base.RefValue{Union{Nothing,Vector{Vector{Splitting}}}}
-    parts::Base.RefValue{Union{Nothing,Vector{Vector{Partition}}}}
+    splits::Base.RefValue{Union{Nothing,Vector{Vector{SplittingEntry}}}}
+    parts::Base.RefValue{Union{Nothing,Vector{Vector{PartitionEntry}}}}
 end
 
 function Trees(p_max::Integer)
     T = generate_trees(p_max)
     return Trees(T, tree_functions(T),
-                 Ref{Union{Nothing,Vector{Vector{Splitting}}}}(nothing),
-                 Ref{Union{Nothing,Vector{Vector{Partition}}}}(nothing))
+                 Ref{Union{Nothing,Vector{Vector{SplittingEntry}}}}(nothing),
+                 Ref{Union{Nothing,Vector{Vector{PartitionEntry}}}}(nothing))
 end
 
 Base.length(T::Trees) = length(T.table)
@@ -186,18 +183,29 @@ Base.show(io::IO, T::Trees) =
     print(io, "Trees: ", length(T), " trees up to order ", T.table.p_max)
 
 """
-    Tree
+    Tree(T::Trees, n::Integer) -> Tree
 
-A rooted tree: its standard number together with the [`Trees`](@ref) it
-belongs to.  Obtained as `T[n]`, by iterating over `T`, or from other
-trees ([`children`](@ref), [`beta_product`](@ref), [`bplus`](@ref));
-[`number`](@ref) gives the standard number.
+The rooted tree t_n: a wrapper around the standard number `n`, together
+with the table `T` in which its tree functions are looked up.
+[`number`](@ref) returns the wrapped integer `n`.
 
-A tree is not an integer: functions on trees take a `Tree`, so that a
-tree cannot be confused with an order, a count or an index.  Two trees
-are equal if they have the same standard number (the numbering does not
+A `Tree` is usually obtained as `T[n]` (the same as `Tree(T, n)`), by
+iterating over `T`, or from other trees ([`children`](@ref),
+[`beta_product`](@ref), [`bplus`](@ref)).  Functions on trees
+([`order`](@ref), [`symmetry`](@ref), ...) take a `Tree`.  Two trees are
+equal if they have the same standard number (the numbering does not
 depend on the maximal order).  A B-series `a` is indexed by trees,
 `a[t]` = a(t).
+
+```jldoctest
+julia> T = Trees(4);
+
+julia> t = T[4]
+t4 = [[τ]]
+
+julia> number(t), order(t)
+(4, 3)
+```
 """
 struct Tree
     T::Trees
@@ -227,6 +235,57 @@ Base.isless(s::Tree, t::Tree) = isless(s.n, t.n)
 Base.show(io::IO, t::Tree) = print(io, "t", t.n, " = ", bracket(t))
 
 """
+    Forest(trees::AbstractVector{Tree}) -> Forest
+    Forest()
+
+A forest: a multiset of trees, stored as the vector of its trees sorted
+by standard number.  `Forest()` is the empty forest.  A `Forest` is an
+`AbstractVector{Tree}`: `length(F)` is the number of trees, `F[i]` the
+i-th tree, and iterating over `F` gives the trees with repetitions.
+Two forests are equal if they contain the same trees.  It is shown as a
+monomial in its trees, e.g. `τ²[τ]`, and `∅` when empty.
+
+Forests arise as B⁻(t) ([`children`](@ref)), as the removed parts t ∖ t'
+of a [`Splitting`](@ref) and as the pieces of a [`Partition`](@ref).
+Book: Section 2.1.
+
+```jldoctest
+julia> T = Trees(4);
+
+julia> F = children(T[6])
+τ[τ]
+
+julia> order(F), length(F), F[2]
+(3, 2, t2 = [τ])
+
+julia> Forest()
+∅
+```
+"""
+struct Forest <: AbstractVector{Tree}
+    trees::Vector{Tree}
+    Forest(trees::AbstractVector{Tree}) = new(sort(collect(trees)))
+end
+
+Forest() = Forest(Tree[])
+
+Base.size(F::Forest) = size(F.trees)
+Base.getindex(F::Forest, i::Int) = F.trees[i]
+Base.IndexStyle(::Type{Forest}) = IndexLinear()
+Base.:(==)(F::Forest, G::Forest) = F.trees == G.trees
+Base.hash(F::Forest, h::UInt) = hash(F.trees, hash(:Forest, h))
+Base.show(io::IO, F::Forest) =
+    print(io, isempty(F) ? "∅" : forest_string(first(F).T, [number(t) for t in F]))
+Base.show(io::IO, ::MIME"text/plain", F::Forest) = show(io, F)
+
+"""
+    order(F::Forest)
+
+Order of a forest: the total number of vertices of its trees.
+"""
+order(F::Forest) = sum(order, F; init = 0)
+
+"""
     order(t::Tree)
 
 Order |t| (number of vertices).  Book: Section 2.5.
@@ -243,8 +302,7 @@ symmetry(t::Tree) = t.T.fns.symmetry[t.n]
 """
     factorial(t::Tree)
 
-The factorial t! of a tree (the array `factorial` of Algorithm 4;
-sometimes called the density γ(t)).  A method of `Base.factorial`:
+The factorial t! of a tree (the array `factorial` of Algorithm 4).  A method of `Base.factorial`:
 `factorial(5)` is still 120.  Book: Section 2.5.
 """
 Base.factorial(t::Tree) = t.T.fns.factorial[t.n]
@@ -292,18 +350,20 @@ function beta_product(s::Tree, t::Tree)
 end
 
 """
-    children(t::Tree) -> Vector{Tree}
+    children(t::Tree) -> Forest
 
-The trees of B⁻(t), with repetitions, in increasing standard number:
-t = [t₁ t₂ ⋯ t_m].
+The forest B⁻(t) = t₁ t₂ ⋯ t_m of the children of t = [t₁ t₂ ⋯ t_m]
+(with repetitions, in increasing standard number).  `children(τ)` is the
+empty forest.
 """
-children(t::Tree) = [Tree(t.T, k) for k in child_numbers(t.T, t.n)]
+children(t::Tree) = Forest([Tree(t.T, k) for k in child_numbers(t.T, t.n)])
 
 """
     bplus(T, kids) -> Tree
 
-The tree [t₁ ⋯ t_m] with the given children (B⁺ of a forest); the
-inverse of [`children`](@ref).  `bplus(T, Tree[])` is τ.
+The tree [t₁ ⋯ t_m] with the given children, B⁺ of the forest (or vector
+of trees) `kids`; the inverse of [`children`](@ref).  `bplus(T, Forest())`
+is τ.
 """
 function bplus(T::Trees, kids::AbstractVector{Tree})
     sum(order, kids; init = 0) < T.table.p_max || throw(DomainError(
@@ -349,16 +409,19 @@ function level_sequence_numbers(T::Trees, n, level)
     return seq
 end
 
-function bracket_string(T::Trees, n)
-    n == 1 && return "τ"
-    kids = child_numbers(T, n)
+bracket_string(T::Trees, n) =
+    n == 1 ? "τ" : "[" * forest_string(T, child_numbers(T, n)) * "]"
+
+# The forest of the trees with the (sorted) standard numbers kids, as a
+# monomial: τ²[τ].
+function forest_string(T::Trees, kids)
     parts = String[]
     for k in unique(kids)
         m = count(==(k), kids)
         str = bracket_string(T, k)
         push!(parts, m == 1 ? str : str * superscript(m))
     end
-    return "[" * join(parts) * "]"
+    return join(parts)
 end
 
 function superscript(m::Integer)
@@ -371,24 +434,63 @@ end
 # ---------------------------------------------------------------------------
 
 """
-    splittings(T) -> Vector{Vector{Splitting}}
+    Splitting
 
-For every tree t_n all pairs (t', t ∖ t'), where t' ≤ t_n is a subtree
-containing the root and t ∖ t' the forest of the removed parts, with
-multiplicities.  The table does not depend on any B-series; it is built
-once per `Trees` object (on first use) by the β-product recursion: for
-t_n = t_i ∘ t_j,
-- the edge to t_j is cut:  (t_k, F) of t_i gives (t_k, F ∪ {t_j});
+One splitting (t', t ∖ t') of a tree t, with the fields
+- `subtree::Tree`: the subtree t' ≤ t containing the root of t;
+- `forest::Forest`: the forest t ∖ t' of the removed parts;
+- `multiplicity::Int`: the number of subtrees t' of t (sets of vertices)
+  giving this pair.
+Returned by [`splittings`](@ref).  Book: Section 2.8.
+"""
+struct Splitting
+    subtree::Tree
+    forest::Forest
+    multiplicity::Int
+end
+
+Base.show(io::IO, s::Splitting) = print(io, "Splitting(t' = ", bracket(s.subtree),
+    ", t ∖ t' = ", s.forest, ", multiplicity ", s.multiplicity, ")")
+
+"""
+    splittings(t::Tree) -> Vector{Splitting}
+
+All splittings (t', t ∖ t') of t: t' ≤ t is a subtree containing the
+root and t ∖ t' the forest of the removed parts, with multiplicities.
+The pair (t, ∅) is included, the pair (∅, t) is not.  Summed over t',
+the multiplicities give the number of subtrees of t containing the root.
+
+The splittings of all trees are computed once per `Trees` object (on
+first use) by the β-product recursion: for t_n = t_i ∘ t_j,
+- the edge to t_j is cut:  (t_k, F) of t_i gives (t_k, F t_j);
 - it is kept:  (t_k, F) of t_i and (t_ℓ, G) of t_j give
-  (t_k ∘ t_ℓ, F ∪ G).
-The pair (t, ∅) is included, the pair (∅, {t}) is not.
+  (t_k ∘ t_ℓ, F G).
 
 Book: Section 2.8 (subtrees), used for the composition (Theorem 3.9).
+
+```jldoctest
+julia> T = Trees(4);
+
+julia> splittings(T[4])
+3-element Vector{Splitting}:
+ Splitting(t' = τ, t ∖ t' = [τ], multiplicity 1)
+ Splitting(t' = [τ], t ∖ t' = τ, multiplicity 1)
+ Splitting(t' = [[τ]], t ∖ t' = ∅, multiplicity 1)
+```
 """
-function splittings(T::Trees)
+function splittings(t::Tree)
+    T = t.T
+    tree(k) = Tree(T, k)
+    return [Splitting(tree(k), Forest(tree.(F)), m)
+            for (k, F, m) in splitting_table(T)[t.n]]
+end
+
+# Internal: the splittings of all trees, on standard numbers, as entries
+# (k, F, m) = (subtree t_k, forest F, multiplicity m), F sorted.
+function splitting_table(T::Trees)
     T.splits[] === nothing || return T.splits[]
     (; L, R, prod) = T.table
-    S = Vector{Vector{Splitting}}(undef, length(T))
+    S = Vector{Vector{SplittingEntry}}(undef, length(T))
     S[1] = [(1, Int[], 1)]
     for n in 2:length(T)
         i, j = L[n], R[n]
