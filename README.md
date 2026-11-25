@@ -2,6 +2,7 @@
 
 [![Docs (stable)](https://img.shields.io/badge/docs-stable-blue.svg)](https://hpodhaisky.github.io/BSeriesBook.jl/stable)
 [![Docs (dev)](https://img.shields.io/badge/docs-dev-blue.svg)](https://hpodhaisky.github.io/BSeriesBook.jl/dev)
+[![Version](https://juliahub.com/docs/General/BSeriesBook/stable/version.svg)](https://juliahub.com/ui/Packages/General/BSeriesBook)
 [![CI](https://github.com/hpodhaisky/BSeriesBook.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/hpodhaisky/BSeriesBook.jl/actions/workflows/CI.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-success.svg)](LICENSE)
 
@@ -39,6 +40,9 @@ coloured trees, symbolic coefficients, symplecticity and energy
 preservation. Our test suite uses it as an independent check.
 
 ## Installation
+
+BSeriesBook.jl is registered in the Julia
+[General registry](https://github.com/JuliaRegistries/General):
 
 ```julia
 julia> using Pkg; Pkg.add("BSeriesBook")

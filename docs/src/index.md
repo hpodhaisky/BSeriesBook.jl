@@ -44,6 +44,10 @@ reference. Further software for B-series is listed under
 
 ## Installation
 
+BSeriesBook.jl is registered in the Julia
+[General registry](https://github.com/JuliaRegistries/General),
+so it is installed with the package manager:
+
 ```julia
 julia> using Pkg
 
